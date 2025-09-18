@@ -52,7 +52,7 @@ CREATE TABLE `exercise_filters` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
 	`description` text,
-	`created_at` integer NOT NULL
+	`created_at` integer DEFAULT (strftime('%s','now')) NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `exercise_filters_name_unique` ON `exercise_filters` (`name`);--> statement-breakpoint
@@ -62,7 +62,7 @@ CREATE TABLE `exercise_reviews` (
 	`exercise_id` text NOT NULL,
 	`rating` integer NOT NULL,
 	`comment` text,
-	`created_at` integer NOT NULL,
+	`created_at` integer DEFAULT (strftime('%s','now')) NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`exercise_id`) REFERENCES `exercises`(`id`) ON UPDATE no action ON DELETE cascade
 );
@@ -78,7 +78,7 @@ CREATE TABLE `exercises` (
 	`technique` text NOT NULL,
 	`muscles` text NOT NULL,
 	`equipment` text,
-	`created_at` integer NOT NULL
+	`created_at` integer DEFAULT (strftime('%s','now')) NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `guests` (

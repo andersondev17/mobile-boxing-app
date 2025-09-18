@@ -1,5 +1,5 @@
 export interface Exercise {
-  _id: number,
+  _id: string,
   title: string,
   category: string,
   posterpath: string,

@@ -1,11 +1,13 @@
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import uuid from 'react-native-uuid';
 import { z } from 'zod';
 import { difficultyEnumZ, exerciseCategoryEnumZ } from './enums';
 
+
 export const exercises = sqliteTable('exercises', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text('id').primaryKey().$defaultFn(() => uuid.v4() as string),
   title: text('title').notNull(),
   poster_url: text('poster_url').notNull(),
   category: text('category').notNull(),
@@ -15,23 +17,23 @@ export const exercises = sqliteTable('exercises', {
   technique: text('technique').notNull(),
   muscles: text('muscles', { mode: 'json' }).$type<string[]>().notNull(),
   equipment: text('equipment'),
-  created_at: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  created_at: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(strftime('%s','now'))`),
 });
 
 export const exerciseFilters = sqliteTable('exercise_filters', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text('id').primaryKey().$defaultFn(() => uuid.v4() as string),
   name: text('name').notNull().unique(),
   description: text('description'),
-  created_at: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  created_at: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(strftime('%s','now'))`),
 });
 
 export const exerciseReviews = sqliteTable('exercise_reviews', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text('id').primaryKey().$defaultFn(() => uuid.v4() as string),
   user_id: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   exercise_id: text('exercise_id').notNull().references(() => exercises.id, { onDelete: 'cascade' }),
   rating: integer('rating').notNull(),
   comment: text('comment'),
-  created_at: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  created_at: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(strftime('%s','now'))`),
 });
 
 // Relations

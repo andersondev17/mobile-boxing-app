@@ -1,4 +1,5 @@
 import { drizzle } from 'drizzle-orm/expo-sqlite';
+import * as SQLite from 'expo-sqlite';
 import { openDatabaseSync } from 'expo-sqlite';
 import { createContext } from 'react';
 import * as schema from './schema';
@@ -25,8 +26,36 @@ export function useDatabase() {
 // Initial data seeding
 export async function seedInitialData() {
     try {
-        const { seedDatabase } = await import('./seed');
-        await seedDatabase();
+        const expoDb = SQLite.openDatabaseSync('boxing_app.db');
+
+        // Ejecutar manualmente la migración si la tabla no existe
+        const tableCheck = await expoDb.getAllAsync(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='exercises';"
+        );
+
+        if (tableCheck.length === 0) {
+            // Ejecuta el SQL de la migracion
+            await expoDb.execAsync(`
+                CREATE TABLE exercises (
+                    id text PRIMARY KEY NOT NULL,
+                    title text NOT NULL,
+                    poster_url text NOT NULL,
+                    category text NOT NULL,
+                    difficulty text DEFAULT 'beginner' NOT NULL,
+                    duration_min integer NOT NULL,
+                    description text NOT NULL,
+                    technique text NOT NULL,
+                    muscles text NOT NULL,
+                    equipment text,
+                    created_at integer DEFAULT (strftime('%s','now')) NOT NULL
+                );
+                -- ... otras tablas si son necesarias
+            `);
+            console.log('Migraciones aplicadas manualmente');
+        }
+
+        const { seedExercises } = await import('./seed');
+        await seedExercises();
         console.log('Database seeded successfully');
     } catch (error) {
         console.error('Error seeding database:', error);

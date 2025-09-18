@@ -1,8 +1,8 @@
 import ExerciseCard from "@/components/ExerciseCard";
 import SearchBar from "@/components/SearchBar";
-import { fetchExercises } from "@/constants/exercises";
 import { icons } from "@/constants/icons";
 import { images } from "@/constants/images";
+import { fetchExercises } from "@/services/exerciseService";
 import useFetch from "@/services/usefetch";
 import { useRouter } from "expo-router";
 import { ActivityIndicator, FlatList, Image, ScrollView, Text, View } from "react-native";

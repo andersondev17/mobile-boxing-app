@@ -5,14 +5,14 @@
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "node -e \"require('lib/db/seed.js').seedDatabase()\""
+    "db:seed": "node lib/db/seed.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
@@ -46,13 +46,21 @@
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-url-polyfill": "^2.0.0",
+    "react-native-uuid": "^2.0.3",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.5.1",
     "tailwindcss": "^3.4.17",
     "zod": "^4.1.8"
   },
   "devDependencies": {
+    "@types/babel__core": "^7.20.5",
+    "@types/estree": "^1.0.8",
+    "@types/istanbul-lib-report": "^3.0.3",
+    "@types/istanbul-reports": "^3.0.4",
+    "@types/json-schema": "^7.0.15",
     "@types/react": "~19.1.0",
+    "@types/ws": "^8.18.1",
+    "@types/yargs": "^17.0.33",
     "drizzle-kit": "^0.31.4",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
