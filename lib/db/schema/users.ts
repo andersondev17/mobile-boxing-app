@@ -1,11 +1,13 @@
 import { relations } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import uuid from 'react-native-uuid';
 import { z } from 'zod';
 import { roleEnumZ } from './enums';
 
+
 export const users = sqliteTable('users', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text('id').primaryKey().$defaultFn(() => uuid.v4()),
   name: text('name'),
   email: text('email').notNull().unique(),
   email_verified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),

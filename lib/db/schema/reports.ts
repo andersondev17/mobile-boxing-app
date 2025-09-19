@@ -1,9 +1,11 @@
 import { relations } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import uuid from 'react-native-uuid';
 import z from 'zod';
 import { trainings } from './trainings';
 import { users } from './users';
+
 interface ProgressData {
     calories?: number;
     punches?: number;
@@ -17,7 +19,7 @@ interface ProgressData {
 }
 
 export const reports = sqliteTable('reports', {
-    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    id: text('id').primaryKey().$defaultFn(() => uuid.v4()),
     user_id: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     training_id: text('training_id').references(() => trainings.id),
     progress_data: text('progress_data', { mode: 'json' }).$type<ProgressData>().notNull(),

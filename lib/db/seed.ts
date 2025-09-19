@@ -176,8 +176,6 @@ const strengthExercises = [
 ];
 export const seedExercises = async () => {
   try {
-    console.log('Iniciando seeding de ejercicios...');
-
     // Combinar todos los ejercicios
     const allExercises = [...exerciseData, ...defensiveExercises, ...strengthExercises];
 
@@ -193,12 +191,10 @@ export const seedExercises = async () => {
           id: uuid.v4() as string,
           ...exercise
         });
-      } else {
-        console.log(`Ejercicio "${exercise.title}" ya existe`);
       }
     }
 
   } catch (error) {
     console.error('Error en seeding de ejercicios:', error);
   }
-};
+}; 

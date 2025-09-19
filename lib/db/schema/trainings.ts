@@ -1,11 +1,13 @@
 import { relations } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import uuid from 'react-native-uuid';
 import { z } from 'zod';
 import { trainingStatusEnumZ } from './enums';
 
+
 export const trainings = sqliteTable('trainings', {
-    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    id: text('id').primaryKey().$defaultFn(() => uuid.v4()),
     user_id: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     trainer_id: text('trainer_id').references(() => users.id),
     title: text('title').notNull(),

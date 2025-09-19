@@ -11,9 +11,9 @@ export interface Exercise {
   equipment: string;
 }
 
-interface TrendingMovie {
+interface TrendingExercise {
   searchTerm: string;
-  movie_id: number;
+  exercise_id: number;
   title: string;
   count: number;
   poster_url: string;
@@ -68,6 +68,6 @@ interface MovieDetails {
 }
 
 interface TrendingCardProps {
-  movie: TrendingMovie;
+  exercise: TrendingMovie;
   index: number;
 }

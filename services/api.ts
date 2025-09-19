@@ -6,7 +6,3 @@ export const API_CONFIG = {
         Authorization: `Bearer ${process.env.NEXT_PUBLIC_API_KEY}`
     }
 }
-
-export const fetchMovies = ({query}:{query:string}) => {
-    const endpoint = ''
-}

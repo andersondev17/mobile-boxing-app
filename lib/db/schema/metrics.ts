@@ -2,12 +2,14 @@
 import { relations } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import uuid from 'react-native-uuid';
 import { z } from 'zod';
 import { exercises } from './exercises';
 import { users } from './users';
 
+
 export const metrics = sqliteTable('metrics', {
-    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    id: text('id').primaryKey().$defaultFn(() => uuid.v4()),
     user_id: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     search_term: text('search_term').notNull(),
     count: integer('count').notNull().default(0),

@@ -28,35 +28,52 @@ export async function seedInitialData() {
     try {
         const expoDb = SQLite.openDatabaseSync('boxing_app.db');
 
-        // Ejecutar manualmente la migración si la tabla no existe
-        const tableCheck = await expoDb.getAllAsync(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='exercises';"
-        );
+        // Crear CADA tabla independientemente
+        await expoDb.execAsync(`
+            CREATE TABLE IF NOT EXISTS users (
+                id text PRIMARY KEY NOT NULL,
+                name text,
+                email text NOT NULL,
+                email_verified integer DEFAULT false NOT NULL,
+                image text,
+                role text DEFAULT 'enthusiast' NOT NULL,
+                created_at integer NOT NULL,
+                updated_at integer NOT NULL
+            );
 
-        if (tableCheck.length === 0) {
-            // Ejecuta el SQL de la migracion
-            await expoDb.execAsync(`
-                CREATE TABLE exercises (
-                    id text PRIMARY KEY NOT NULL,
-                    title text NOT NULL,
-                    poster_url text NOT NULL,
-                    category text NOT NULL,
-                    difficulty text DEFAULT 'beginner' NOT NULL,
-                    duration_min integer NOT NULL,
-                    description text NOT NULL,
-                    technique text NOT NULL,
-                    muscles text NOT NULL,
-                    equipment text,
-                    created_at integer DEFAULT (strftime('%s','now')) NOT NULL
-                );
-                -- ... otras tablas si son necesarias
-            `);
-            console.log('Migraciones aplicadas manualmente');
-        }
+            CREATE TABLE IF NOT EXISTS exercises (
+                id text PRIMARY KEY NOT NULL,
+                title text NOT NULL,
+                poster_url text NOT NULL,
+                category text NOT NULL,
+                difficulty text DEFAULT 'beginner' NOT NULL,
+                duration_min integer NOT NULL,
+                description text NOT NULL,
+                technique text NOT NULL,
+                muscles text NOT NULL,
+                equipment text,
+                created_at integer DEFAULT (strftime('%s','now')) NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS metrics (
+                id text PRIMARY KEY NOT NULL,
+                user_id text NOT NULL,
+                search_term text NOT NULL,
+                count integer DEFAULT 0 NOT NULL,
+                poster_url text NOT NULL,
+                exercise_id text,
+                title text NOT NULL,
+                created_at integer DEFAULT (strftime('%s','now')) NOT NULL,
+                updated_at integer DEFAULT (strftime('%s','now')) NOT NULL
+            );
+        `);
+
+        const dataCheck = await expoDb.getAllAsync("SELECT COUNT(*) as count FROM exercises") as { count: number }[];
+        if (dataCheck[0].count > 0) return;
 
         const { seedExercises } = await import('./seed');
         await seedExercises();
-        console.log('Database seeded successfully');
+        console.log('Database setup complete');
     } catch (error) {
         console.error('Error seeding database:', error);
         throw error;
