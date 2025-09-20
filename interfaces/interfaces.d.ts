@@ -19,7 +19,7 @@ interface TrendingExercise {
   poster_url: string;
 }
 
-interface MovieDetails {
+interface ExerciseDetails {
   adult: boolean;
   backdrop_path: string | null;
   belongs_to_collection: {

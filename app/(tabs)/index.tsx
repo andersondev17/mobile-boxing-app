@@ -7,8 +7,22 @@ import { fetchExercises } from "@/services/exerciseService";
 import { getTrendingExercises } from "@/services/search";
 import useFetch from "@/services/usefetch";
 import { useRouter } from "expo-router";
-import { ActivityIndicator, FlatList, Image, ScrollView, Text, View } from "react-native";
-//home route
+import { ActivityIndicator, FlatList, Image, Text, TouchableOpacity, View } from "react-native";
+
+interface Section {
+  type: string;
+  id: string;
+  title?: string;
+  data?: any[];
+  showAllLink?: string; //  "link Ver todos"
+}
+
+const SECTION_TYPES = {
+  HEADER: 'header',
+  SEARCH: 'search', 
+  TRENDING: 'trending',
+  EXERCISES: 'exercises'
+} as const;
 
 export default function Index() {
   const router = useRouter();
@@ -17,75 +31,193 @@ export default function Index() {
     data: trendingExercises,
     loading: trendingLoading,
     error: trendingError,
-  } = useFetch((getTrendingExercises))
+  } = useFetch(getTrendingExercises);
+
   const {
     data: exercises,
     loading: exercisesLoading,
     error: exercisesError,
-  } = useFetch(() => fetchExercises({
-    query: ''
-  }))
+  } = useFetch(() => fetchExercises({ query: '' }));
+
+  //  horizontal sections
+  const buildSections = (): Section[] => {
+    const sections: Section[] = [
+      { type: SECTION_TYPES.HEADER, id: 'header' },
+      { type: SECTION_TYPES.SEARCH, id: 'search' },
+    ];
+
+    if (trendingExercises?.length) {
+      sections.push({
+        type: SECTION_TYPES.TRENDING,
+        id: 'trending',
+        title: ' POPULARES HOY',
+        data: trendingExercises,
+      });
+    }
+
+    if (exercises?.length) {
+      sections.push({
+        type: SECTION_TYPES.EXERCISES,
+        id: 'exercises', 
+        title: ' Últimos ejercicios',
+        data: exercises.slice(0, 10),
+        showAllLink: '/exercises'
+      });
+    }
+
+    return sections;
+  };
+
+const renderSectionHeader = (section: Section) => {
+  const { title, showAllLink } = section;
+  if (!title) return null;
 
   return (
-    <View className="flex-1 bg-gymshock-dark-900">
-      <Image source={images.pattern} className="flex-1 absolute w-full h-full opacity-25 z-0" resizeMode="cover" />
-      <ScrollView className="flex-1 px-5 " showsVerticalScrollIndicator={false} contentContainerStyle={{ minHeight: "100%", paddingBottom: 10 }} >
-        <Image source={icons.logo} className="w-16 h-10 mt-20 mb-5 mx-auto" />
+    <View className="flex-row justify-between items-center px-5 mb-3">
+      <Text className="text-2xl text-white font-oswaldbold">
+        {title}
+      </Text>
+      {showAllLink && (
+        <TouchableOpacity 
+          onPress={() => router.push(showAllLink as any)}
+          className="px-3 py-1 rounded-full"
+        >
+          <Text className="text-gray-300 text-xs font-oswald">
+            Ver todos 
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
 
-
-        {exercisesLoading || trendingLoading ? (
-          <ActivityIndicator
-            size="large"
-            color="#0000ff"
-            className="mt-10 self-center"
+  //  horizontal sections
+  const renderItem = ({ item }: { item: Section }) => {
+    switch (item.type) {
+      case SECTION_TYPES.HEADER:
+        return (
+          <Image 
+            source={icons.logo} 
+            className="w-16 h-10 mt-20 mb-5 mx-auto" 
           />
-        ) : exercisesError || trendingError ? (
-          <Text>Error: {exercisesError?.message || trendingError?.message}</Text>
-        ) : (
-          <View className="flex-1 mt-5">
+        );
+      
+      case SECTION_TYPES.SEARCH:
+        return (
+          <View className="px-5 mb-8">
             <SearchBar
               onPress={() => router.push('/search')}
-              placeholder={'Que quieres hacer hoy?'}
+              placeholder="¿Qué quieres hacer hoy?"
             />
-            {trendingExercises && (
-              <View className="mt-10">
-                <Text className="text-lg text-white font-bold mb-3">Ejercicios populares</Text>
-              </View>
-            )}
-            <>
-              <FlatList
-                className="mb-4 mt-3"
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                data={trendingExercises}
-                contentContainerStyle={{ gap: 26 }}
-                renderItem={({ item, index }) => (
-                  <TrendingCard exercise={item} index={index}/>
-                )}
-                keyExtractor={(item, index) => item.exercise_id?.toString() || index.toString()}
-                ItemSeparatorComponent={() => <View className="w-4" />}
-              />
-              <Text className="text-lg text-white font-bold mt-5 mb-3">Ultimos ejercicios</Text>
-
-              <FlatList
-                data={exercises}
-                renderItem={({ item }) => (
-                  <ExerciseCard
-                    {...item}
-                  />
-                )}
-                keyExtractor={(item) => item._id.toString()}/* Helps figure out how many items */
-                numColumns={3}
-                columnWrapperStyle={{ justifyContent: 'flex-start', gap: 20, paddingRight: 5, marginBottom: 10 }}
-                className="mt-2 pb-32"
-                scrollEnabled={false}
-              />
-            </>
           </View>
-        )
-        }
+        );
+      
+      case SECTION_TYPES.TRENDING:
+        return (
+          <View className="mb-6">
+            {renderSectionHeader(item)}
+            <FlatList
+              horizontal
+              data={item.data}
+              renderItem={({ item: trendingItem, index }) => (
+                <View style={{ 
+                  marginLeft: index === 0 ? 30 : 0, 
+                  marginRight: 30
+                }}>
+                  <TrendingCard exercise={trendingItem} index={index} />
+                </View>
+              )}
+              keyExtractor={(trendingItem, index) => 
+                trendingItem.exercise_id?.toString() || `trending-${index}`
+              }
+              showsHorizontalScrollIndicator={false}
+              removeClippedSubviews
+              maxToRenderPerBatch={3}
+              initialNumToRender={2}
+            />
+          </View>
+        );
+      
+      case SECTION_TYPES.EXERCISES:
+        return (
+          <View className="mb-6">
+            {renderSectionHeader(item)}
+            <FlatList
+              horizontal
+              data={item.data}
+              renderItem={({ item: exerciseItem, index }) => (
+                <View style={{ 
+                  marginLeft: index === 0 ? 20 : 0, 
+                  marginRight: 16,
+                  width: 120 
+                }}>
+                  <ExerciseCard {...exerciseItem} />
+                </View>
+              )}
+              keyExtractor={(exerciseItem) => exerciseItem._id}
+              showsHorizontalScrollIndicator={false}
+              removeClippedSubviews
+              maxToRenderPerBatch={3}
+              initialNumToRender={3}
+              decelerationRate="fast"
+            />
+          </View>
+        );
+      
+      default:
+        return null;
+    }
+  };
 
-      </ScrollView>
+  if (exercisesLoading || trendingLoading) {
+    return (
+      <View className="flex-1 bg-black justify-center items-center">
+        <Image 
+          source={images.pattern} 
+          className="absolute w-full h-full opacity-25" 
+          resizeMode="cover" 
+        />
+        <ActivityIndicator size="large" color="#FF6B35" />
+      </View>
+    );
+  }
+
+  if (exercisesError || trendingError) {
+    return (
+      <View className="flex-1 bg-black justify-center items-center px-5">
+        <Image 
+          source={images.pattern} 
+          className="absolute w-full h-full opacity-25" 
+          resizeMode="cover" 
+        />
+        <Text className="text-white text-center">
+          Error: {exercisesError?.message || trendingError?.message}
+        </Text>
+      </View>
+    );
+  }
+
+  const sections = buildSections();
+
+  return (
+    <View className="flex-1 bg-black">
+      <Image 
+        source={images.pattern} 
+        className="absolute w-full h-full opacity-25" 
+        resizeMode="cover" 
+      />
+      
+      <FlatList
+        data={sections}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        removeClippedSubviews
+        maxToRenderPerBatch={2}
+        initialNumToRender={2}
+        windowSize={3}
+      />
     </View>
   );
 }

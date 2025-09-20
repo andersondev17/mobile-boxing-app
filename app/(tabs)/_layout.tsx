@@ -12,9 +12,9 @@ const TabIcon = ({ focused, icon, title }: any) => {
                 className="flex flex-row w-full flex-1 min-w-[145px] min-h-16 mt-4 justify-center items-center rounded-full overflow-hidden"
             >
                 <Image source={icon}
-                    tintColor="#0B1426" className="size-"
+                    tintColor="#0B1426" className="size-5"
                 />
-                <Text className='text-light-100 text-sm font-semibold ml-2'>{title}</Text>
+                <Text className='text-light-100 text-sm font-oswaldmed ml-2'>{title}</Text>
             </ImageBackground>
         )
     }
@@ -25,7 +25,6 @@ const TabIcon = ({ focused, icon, title }: any) => {
             />
         </View>
     )
-
 }
 const _layout = () => {
     return (
@@ -55,6 +54,7 @@ const _layout = () => {
                 options={{
                     title: "Inicio",
                     headerShown: false,
+                    
                     tabBarIcon: ({ focused }) => (
                         <TabIcon
                             focused={focused}

@@ -75,12 +75,12 @@ const Search = () => {
                             <ActivityIndicator size="large" color="#0000ff" className="my-3" />
                         )}
                         {error && (
-                            <Text className='text-red-500 px-5 my-3'>Error: {error.message}</Text>
+                            <Text className='text-red-500 px-5 my-3 font-oswald'>Error: {error.message}</Text>
                         )}
                         {!loading && !error && searchQuery.trim() && exercises && exercises.length > 0 && (
-                            <Text className='text-xl text-white font-bold'>
+                            <Text className='text-xl text-white font-oswaldbold'>
                                 Buscaste {' '}
-                                <Text className='text-accent-cosmic'>{searchQuery}</Text>
+                                <Text className='text-accent-cosmic font-oswaldmed'>{searchQuery}</Text>
                             </Text>
                         )}
                     </>
@@ -88,7 +88,7 @@ const Search = () => {
                 ListEmptyComponent={
                     !loading && !error ? (
                         <View className="mt-10 px-5">
-                            <Text className="text-center text-gray-500">
+                            <Text className="text-center text-gray-500 font-oswald">
                                 {searchQuery.trim()
                                     ? "No se encontraron ejercicios"
                                     : "Escribe para buscar ejercicios"}

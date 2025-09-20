@@ -5,6 +5,14 @@ module.exports = {
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
+      fontFamily: {
+        "spacemono": ["SpaceMono"],
+        "oswaldbold": ["OswaldBold"],
+        "oswaldmed": ["OswaldMedium"],
+        "oswald": ["OswaldRegular"],
+        "OswaldLight": ["OswaldLight"],
+        "OswaldExtraLight":["OswaldExtraLight"]
+      },
       colors: {
         primary: {
           DEFAULT: "#FF4500", // Naranja-rojo principal
