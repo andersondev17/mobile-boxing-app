@@ -7,16 +7,15 @@ const ExerciseCard = ({ _id, title, posterpath, difficulty, duration }: Exercise
     const getBadgeStyle = (type: string, value: string) => {
         const styles = {
             difficulty: {
-                'beginner': 'bg-accent-neon',
-                'intermedio': 'bg-secondary-500',
-                'intermediate': 'bg-secondary-500',
-                'advanced': 'bg-primary-500'
+                'principiante': 'bg-accent-gold-600',
+                'intermedio': 'bg-accent-gold-400',
+                'avanzado': 'bg-accent-gold-200',
             } as {[key: string]: string},
             duration: 'bg-primary-500/20'
         };
 
         return type === 'difficulty'
-            ? styles.difficulty[value.toLowerCase()] || styles.difficulty.beginner
+            ? styles.difficulty[value.toLowerCase()] || styles.difficulty.principiante
             : styles.duration;
     };
     return (

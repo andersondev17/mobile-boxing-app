@@ -3,169 +3,171 @@ import { exercises } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import uuid from 'react-native-uuid';
 
-const exerciseData = [
+const tecnicasGolpeoData = [
   {
     title: 'Jab',
     poster_url: 'https://media.giphy.com/media/ovzh1nMQQMOMXE3WVx/giphy.gif',
-    category: 'golpes_basicos',
+    category: 'tecnicas_golpeo',
     difficulty: 'principiante',
     duration_min: 5,
     description: 'Golpe directo rápido con la mano adelantada',
-    technique: 'Mantén la mano alta, extiende el brazo rápidamente y retira inmediatamente a la posición de guardia. Gira la palma hacia abajo al impactar:cite[4].',
+    technique: 'Mantén la guardia alta, extiende el brazo rápidamente y retira inmediatamente. Gira la palma hacia abajo al impactar.',
     muscles: ['Hombros', 'Tríceps', 'Core'],
-    equipment: 'Saco de boxeo, pads o shadow boxing'
+    equipment: 'Saco de boxeo, pads o sombra'
   },
   {
-    title: 'Cross (Directo de Derecha)',
+    title: 'Directo de Derecha',
     poster_url: 'https://media.giphy.com/media/xUySTxL9fZyjIKzoLS/giphy.gif',
-    category: 'golpes_basicos',
+    category: 'tecnicas_golpeo',
     difficulty: 'principiante',
     duration_min: 5,
     description: 'Golpe potente con la mano trasera',
-    technique: 'Gira la cadera y los hombros mientras transfieres el peso al pie delantero. Mantén la mano derecha protegiendo el mentón:cite[9].',
+    technique: 'Gira la cadera y hombros mientras transfieres peso al pie delantero. Mantén la mano protegiendo el mentón.',
     muscles: ['Hombros', 'Espalda', 'Core', 'Piernas'],
-    equipment: 'Saco de boxeo, pads o shadow boxing'
+    equipment: 'Saco de boxeo, pads o sombra'
   },
   {
-    title: 'Gancho Izquierdo (Left Hook)',
+    title: 'Gancho Izquierdo',
     poster_url: 'https://media.giphy.com/media/lmHf50zYQPAYmHvTGR/giphy.gif',
-    category: 'golpes_circulares',
+    category: 'tecnicas_golpeo',
     difficulty: 'intermedio',
     duration_min: 6,
     description: 'Golpe circular con la mano izquierda al rostro',
-    technique: 'Mantén el codo a 90°, gira el torso y pivota el pie izquierdo. El movimiento viene de la rotación corporal:cite[9].',
+    technique: 'Mantén el codo a 90°, gira el torso y pivota el pie izquierdo. El movimiento viene de la rotación corporal.',
     muscles: ['Hombros', 'Oblicuos', 'Core', 'Piernas'],
-    equipment: 'Saco de boxeo, pads o shadow boxing'
+    equipment: 'Saco de boxeo, pads o sombra'
   },
   {
-    title: 'Gancho al Cuerpo (Body Hook)',
+    title: 'Gancho al Cuerpo',
     poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
-    category: 'golpes_circulares',
+    category: 'tecnicas_golpeo',
     difficulty: 'intermedio',
     duration_min: 7,
-    description: 'Golpe circular al área corporal del oponente',
-    technique: 'Flexiona ligeramente las rodillas y gira el torso para generar potencia. Mantén la otra mano protegiendo el rostro.',
+    description: 'Golpe circular dirigido al área corporal',
+    technique: 'Flexiona las rodillas y gira el torso para generar potencia. Mantén la otra mano protegiendo el rostro.',
     muscles: ['Oblicuos', 'Core', 'Hombros'],
     equipment: 'Saco de boxeo, pads o sparring'
   },
   {
-    title: 'Uppercut (Gancho Vertical)',
+    title: 'Uppercut',
     poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
-    category: 'golpes_potencia',
+    category: 'tecnicas_golpeo',
     difficulty: 'intermedio',
     duration_min: 7,
     description: 'Golpe ascendente dirigido al mentón',
-    technique: 'Dobla las rodillas y empuja desde las piernas con un movimiento ascendente. Mantén el codo flexionado:cite[9].',
+    technique: 'Dobla las rodillas y empuja desde las piernas con movimiento ascendente. Mantén el codo flexionado.',
     muscles: ['Piernas', 'Glúteos', 'Core', 'Hombros', 'Bíceps'],
-    equipment: 'Saco de boxeo, pads o shadow boxing'
+    equipment: 'Saco de boxeo, pads o sombra'
   },
   {
-    title: 'Jab-Doble',
+    title: 'Combinación 1-2',
     poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
-    category: 'combinaciones',
+    category: 'tecnicas_golpeo',
+    difficulty: 'principiante',
+    duration_min: 8,
+    description: 'Jab seguido de directo de derecha',
+    technique: 'Jab rápido seguido de directo potente con la mano trasera. Transfiere el peso adecuadamente.',
+    muscles: ['Hombros', 'Tríceps', 'Core', 'Piernas'],
+    equipment: 'Saco de boxeo, pads o sombra'
+  },
+  {
+    title: 'Doble Jab',
+    poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
+    category: 'tecnicas_golpeo',
     difficulty: 'intermedio',
     duration_min: 8,
     description: 'Dos jabs rápidos consecutivos',
-    technique: 'Ejecuta un jab rápido y sigue inmediatamente con un segundo jab. Mantén la velocidad y recuperación:cite[4].',
+    technique: 'Ejecuta un jab rápido y sigue inmediatamente con segundo jab. Mantén velocidad y recuperación.',
     muscles: ['Hombros', 'Tríceps', 'Core', 'Piernas'],
-    equipment: 'Saco de boxeo, pads o shadow boxing'
-  },
-  {
-    title: 'Cruzado-Jab (1-2)',
-    poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
-    category: 'combinaciones',
-    difficulty: 'principiante',
-    duration_min: 8,
-    description: 'Combinación básica de jab seguido de cruzado',
-    technique: 'Jab rápido seguido de un cruzado potente con la mano trasera. Transfiere el peso adecuadamente:cite[9].',
-    muscles: ['Hombros', 'Tríceps', 'Core', 'Piernas'],
-    equipment: 'Saco de boxeo, pads o shadow boxing'
+    equipment: 'Saco de boxeo, pads o sombra'
   }
 ];
-const defensiveExercises = [
+
+const tecnicasDefensaData = [
   {
-    title: 'Slip (Esquiva Lateral)',
+    title: 'Esquiva Lateral',
     poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
     category: 'defensa',
     difficulty: 'intermedio',
     duration_min: 5,
-    description: 'Esquivar golpes moviendo la cabeza',
+    description: 'Esquivar golpes moviendo la cabeza lateralmente',
     technique: 'Desplaza la cabeza ligeramente hacia los lados manteniendo la guardia alta. Movimiento pequeño y eficiente.',
     muscles: ['Cuello', 'Core', 'Oblicuos'],
     equipment: 'Ninguno o trabajo con compañero'
   },
   {
-    title: 'Bob and Weave (Agachada y Movimiento)',
+    title: 'Agachada y Tejido',
     poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
     category: 'defensa',
     difficulty: 'intermedio',
     duration_min: 6,
-    description: 'Movimiento de agacharse y esquivar',
-    technique: 'Agáchate flexionando rodillas y muévete en forma de U debajo del golpe. Mantén el equilibrio:cite[4].',
+    description: 'Agacharse y moverse en forma de U para esquivar',
+    technique: 'Agáchate flexionando rodillas y muévete en U por debajo del golpe. Mantén el equilibrio.',
     muscles: ['Piernas', 'Core', 'Glúteos'],
     equipment: 'Ninguno o trabajo con compañero'
   },
   {
-    title: 'Block (Bloqueo)',
+    title: 'Bloqueo con Guantes',
     poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
     category: 'defensa',
     difficulty: 'principiante',
     duration_min: 5,
-    description: 'Bloquear golpes con los guantes y brazos',
-    technique: 'Usa los guantes y brazos para absorber el impacto de los golpes manteniendo las manos cerca del rostro.',
+    description: 'Bloquear golpes con guantes y brazos',
+    technique: 'Usa los guantes y brazos para absorber el impacto manteniendo las manos cerca del rostro.',
     muscles: ['Brazos', 'Hombros', 'Core'],
     equipment: 'Guantes de boxeo'
   },
   {
-    title: 'Parry (Desvío)',
+    title: 'Desvío',
     poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
     category: 'defensa',
     difficulty: 'intermedio',
     duration_min: 5,
-    description: 'Desviar golpes con movimientos precisos',
-    technique: 'Usa movimientos pequeños de manos para desviar golpes. Requiere timing y precisión.',
+    description: 'Desviar golpes con movimientos precisos de manos',
+    technique: 'Usa movimientos pequeños de manos para desviar golpes. Requiere timing y precisión perfectos.',
     muscles: ['Antebrazos', 'Hombros', 'Reflejos'],
     equipment: 'Guantes de boxeo'
   }
 ];
-const strengthExercises = [
+
+const ejerciciosFuerzaData = [
   {
     title: 'Saltar Cuerda',
     poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
-    category: 'acondicionamiento',
+    category: 'fuerza_acondicionamiento',
     difficulty: 'principiante',
     duration_min: 10,
-    description: 'Salto de cuerda para condición física',
-    technique: 'Mantén un ritmo constante con saltos ligeros sobre las puntas de los pies. Variar patrones de salto.',
+    description: 'Salto de cuerda para condición cardiovascular',
+    technique: 'Mantén ritmo constante con saltos ligeros sobre las puntas. Varía patrones de salto.',
     muscles: ['Pantorrillas', 'Cardiovascular', 'Coordinación'],
     equipment: 'Cuerda para saltar'
   },
   {
-    title: 'Sombra con Pesas Ligeras',
+    title: 'Sombra con Pesas',
     poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
-    category: 'acondicionamiento',
+    category: 'fuerza_acondicionamiento',
     difficulty: 'intermedio',
     duration_min: 10,
-    description: 'Boxeo de sombra con pesas para resistencia',
-    technique: 'Ejecuta combinaciones de boxeo con pesas ligeras (1-2 kg). Enfócate en técnica y no en velocidad.',
+    description: 'Boxeo de sombra con pesas ligeras para resistencia',
+    technique: 'Ejecuta combinaciones con pesas ligeras (1-2 kg). Enfócate en técnica, no en velocidad.',
     muscles: ['Hombros', 'Resistencia muscular', 'Core'],
-    equipment: 'Pesas ligeras'
+    equipment: 'Pesas ligeras de 1-2 kg'
   },
   {
     title: 'Plancha con Golpes',
     poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
-    category: 'fortalecimiento_core',
+    category: 'fuerza_acondicionamiento',
     difficulty: 'avanzado',
     duration_min: 5,
-    description: 'Ejercicio de core con movimiento de golpes',
-    technique: 'En posición de plancha, ejecuta golpes alternados manteniendo la estabilidad corporal.',
+    description: 'Ejercicio de core con movimientos de golpes',
+    technique: 'En posición de plancha, ejecuta golpes alternados manteniendo estabilidad corporal.',
     muscles: ['Core', 'Hombros', 'Estabilidad'],
     equipment: 'Tapete de ejercicio'
   },
   {
-    title: 'Giros Rusos con Pesas',
+    title: 'Giros Rusos',
     poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
-    category: 'fortalecimiento_core',
+    category: 'fuerza_acondicionamiento',
     difficulty: 'intermedio',
     duration_min: 7,
     description: 'Fortalecimiento de oblicuos para rotación',
@@ -174,12 +176,15 @@ const strengthExercises = [
     equipment: 'Pesa o balón medicinal'
   }
 ];
+
 export const seedExercises = async () => {
   try {
-    // Combinar todos los ejercicios
-    const allExercises = [...exerciseData, ...defensiveExercises, ...strengthExercises];
+    const allExercises = [
+      ...tecnicasGolpeoData, 
+      ...tecnicasDefensaData, 
+      ...ejerciciosFuerzaData
+    ];
 
-    // Para cada ejercicio, verificar si existe por título y categoría
     for (const exercise of allExercises) {
       const existingExercise = await db.select()
         .from(exercises)
@@ -197,4 +202,4 @@ export const seedExercises = async () => {
   } catch (error) {
     console.error('Error en seeding de ejercicios:', error);
   }
-}; 
+};

@@ -11,21 +11,21 @@ module.exports = {
         "oswaldmed": ["OswaldMedium"],
         "oswald": ["OswaldRegular"],
         "OswaldLight": ["OswaldLight"],
-        "OswaldExtraLight":["OswaldExtraLight"]
+        "OswaldExtraLight": ["OswaldExtraLight"]
       },
       colors: {
         primary: {
-          DEFAULT: "#FF4500", // Naranja-rojo principal
-          50: "#FFF4ED",
-          100: "#FFE6D3",
-          200: "#FFCBA6",
-          300: "#FFA574",
-          400: "#FF7340",
-          500: "#FF4500",     // Main color
-          600: "#E63900",     // HOVER STATE ⭐
-          700: "#CC3300",
-          800: "#B32D00",
-          900: "#7A1F00"
+          DEFAULT: "#B8860B", // Naranja-rojo principal
+          50: "#FFF8DC",
+          100: "#FFEFD5",
+          200: "#FFE4B5",
+          300: "#FFD700",
+          400: "#DAA520",
+          500: "#B8860B",     // Dorado principal
+          600: "#9A7209",
+          700: "#7D5E07",
+          800: "#604A05",
+          900: "#433603"
         },
         secondary: {
           DEFAULT: "#1E3A8A", // Azul profundo
@@ -41,9 +41,13 @@ module.exports = {
           900: "#1E3A8A"      // Azul más profundo
         },
         accent: {
-          orange: "#FF6B35",    // Naranja vibrante (CTAs secundarios)
-          cosmic: "#8B5CF6",    // Violeta espacial (highlights)
-          neon: "#00D4AA",      // Verde cyan (success/progress)
+          gold: {
+            600: "#FFB300",   // (CTAs principales)
+            400: "#FFC107",   // (CTAs secundarios)
+            200: "#FFCA28"  
+          },
+          cosmic: "#2C2C2C",    // Violeta espacial (highlights)
+          neon: "#8B0000",      // Verde cyan (success/progress)
           stellar: "#F59E0B"    // Dorado (achievements)
         },
         light: {
@@ -60,12 +64,14 @@ module.exports = {
           }
         },
         dark: {
-          100: "#151312",
+          100: "#0A0A0A",
           200: "#221F3D",
         },
       },
       backgroundImage: {
-        'cosmic-fire': 'linear-gradient(135deg, #FF4500 0%, #FF6B35 50%, #1E40AF 100%)',
+        'premiumGradient': 'linear-gradient(135deg, #0A0A0A 0%, #2C2C2C 50%, #B8860B 100%)',
+        'legacyGlow': 'radial-gradient(circle, rgba(255,215,0,0.1) 0%, rgba(10,10,10,1) 70%)',
+        'underground': 'linear-gradient(45deg, #8B0000 0%, #0A0A0A 100%)'
       }
     },
   },
