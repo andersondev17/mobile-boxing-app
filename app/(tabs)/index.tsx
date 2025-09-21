@@ -1,9 +1,10 @@
 import ExerciseCard from "@/components/ExerciseCard";
+import ListCard from "@/components/ListCard";
 import SearchBar from "@/components/SearchBar";
 import TrendingCard from "@/components/TrendingCard";
 import { icons } from "@/constants/icons";
 import { images } from "@/constants/images";
-import { fetchExercises } from "@/services/exerciseService";
+import { fetchEjerciciosFuerza, fetchExercises, fetchTecnicasDefensa, fetchTecnicasGolpeo } from "@/services/exerciseService";
 import { getTrendingExercises } from "@/services/search";
 import useFetch from "@/services/usefetch";
 import { useRouter } from "expo-router";
@@ -21,6 +22,9 @@ const SECTION_TYPES = {
   HEADER: 'header',
   SEARCH: 'search', 
   TRENDING: 'trending',
+  TECNICAS_GOLPEO: 'tecnicas_golpeo',
+  DEFENSA: 'defensa', 
+  FUERZA: 'fuerza',
   EXERCISES: 'exercises'
 } as const;
 
@@ -39,19 +43,68 @@ export default function Index() {
     error: exercisesError,
   } = useFetch(() => fetchExercises({ query: '' }));
 
-  //  horizontal sections
+  const {
+    data: tecnicasGolpeo,
+    loading: golpeoLoading,
+    error: golpeoError,
+  } = useFetch(fetchTecnicasGolpeo);
+
+  const {
+    data: tecnicasDefensa,
+    loading: defensaLoading,
+    error: defensaError,
+  } = useFetch(fetchTecnicasDefensa);
+
+  const {
+    data: ejerciciosFuerza,
+    loading: fuerzaLoading,
+    error: fuerzaError,
+  } = useFetch(fetchEjerciciosFuerza);
+
+  //  horizontal
   const buildSections = (): Section[] => {
     const sections: Section[] = [
       { type: SECTION_TYPES.HEADER, id: 'header' },
       { type: SECTION_TYPES.SEARCH, id: 'search' },
     ];
 
+
+    if (tecnicasGolpeo?.length) {
+      sections.push({
+        type: SECTION_TYPES.TECNICAS_GOLPEO,
+        id: 'tecnicas_golpeo',
+        title: 'Técnicas de Golpeo',
+        data: tecnicasGolpeo.slice(0, 10),
+        showAllLink: '/tecnicas-golpeo'
+      });
+    }
+    
     if (trendingExercises?.length) {
       sections.push({
         type: SECTION_TYPES.TRENDING,
         id: 'trending',
         title: ' POPULARES HOY',
         data: trendingExercises,
+      });
+    }  
+
+    if (tecnicasDefensa?.length) {
+      sections.push({
+        type: SECTION_TYPES.DEFENSA,
+        id: 'defensa',
+        title: 'Defensa',
+        data: tecnicasDefensa.slice(0, 4), // Solo 4 para lista vertical
+        showAllLink: '/defensa'
+      });
+    }
+
+    if (ejerciciosFuerza?.length) {
+      sections.push({
+        type: SECTION_TYPES.FUERZA,
+        id: 'fuerza',
+        title: 'Fuerza y Acondicionamiento',
+        data: ejerciciosFuerza.slice(0, 10),
+        showAllLink: '/fuerza'
       });
     }
 
@@ -80,11 +133,12 @@ const renderSectionHeader = (section: Section) => {
       {showAllLink && (
         <TouchableOpacity 
           onPress={() => router.push(showAllLink as any)}
-          className="px-3 py-1 rounded-full"
+          className="p-2"
         >
-          <Text className="text-gray-300 text-xs font-oswald">
-            Ver todos 
-          </Text>
+          <Image 
+            source={icons.arrow} 
+            className="w-6 h-6 bg-primary-500 rounded-xl"
+          />
         </TouchableOpacity>
       )}
     </View>
@@ -137,7 +191,25 @@ const renderSectionHeader = (section: Section) => {
             />
           </View>
         );
-      
+    
+
+      case SECTION_TYPES.DEFENSA:
+        return (
+          <View className="mb-6">
+            {renderSectionHeader(item)}
+            <View>
+              {item.data?.map((exerciseItem) => (
+                <ListCard 
+                  key={exerciseItem._id} 
+                  exercise={exerciseItem} 
+                />
+              ))}
+            </View>
+          </View>
+        );
+
+      case SECTION_TYPES.TECNICAS_GOLPEO:
+      case SECTION_TYPES.FUERZA:
       case SECTION_TYPES.EXERCISES:
         return (
           <View className="mb-6">
@@ -169,7 +241,7 @@ const renderSectionHeader = (section: Section) => {
     }
   };
 
-  if (exercisesLoading || trendingLoading) {
+  if (exercisesLoading || trendingLoading || golpeoLoading || defensaLoading || fuerzaLoading) {
     return (
       <View className="flex-1 bg-black justify-center items-center">
         <Image 
@@ -182,7 +254,7 @@ const renderSectionHeader = (section: Section) => {
     );
   }
 
-  if (exercisesError || trendingError) {
+  if (exercisesError || trendingError || golpeoError || defensaError || fuerzaError) {
     return (
       <View className="flex-1 bg-black justify-center items-center px-5">
         <Image 
@@ -201,10 +273,10 @@ const renderSectionHeader = (section: Section) => {
 
   return (
     <View className="flex-1 bg-black">
-      <Image 
-        source={images.pattern} 
-        className="absolute w-full h-full opacity-25" 
-        resizeMode="cover" 
+      <Image
+        source={images.bg}
+        className="absolute w-full h-full opacity-25 bg-backgroundImage-premiumGradient"
+        resizeMode="cover"
       />
       
       <FlatList
@@ -212,7 +284,7 @@ const renderSectionHeader = (section: Section) => {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
         removeClippedSubviews
         maxToRenderPerBatch={2}
         initialNumToRender={2}

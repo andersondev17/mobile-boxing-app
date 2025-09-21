@@ -44,7 +44,8 @@ const Search = () => {
 
     return (
         <View className='bg-gymshock-dark-900 flex-1'>
-            <Image source={images.pattern} className="flex-1 absolute w-full h-full opacity-25 z-0" resizeMode="cover" />
+            <Image source={images.bg} className="flex-1 absolute w-full h-full opacity-25 z-0" resizeMode="cover" />
+
             <FlatList
                 data={exercises || []}
                 renderItem={({ item }) => (<ExerciseCard {...item} />)}

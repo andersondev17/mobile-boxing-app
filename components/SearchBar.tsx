@@ -9,7 +9,7 @@ interface Props {
 }
 const SearchBar = ({ placeholder, onPress , value, onChangeText}: Props) => {
     return (
-        <View className='flex-row items-center bg-dark-200 rounded-full px-5 py-4'>
+        <View className='flex-row items-center bg-dark-200 rounded-full px-5 py-4 shadow-lg border border-gray-800'>
             <Image source={icons.search} className="size-5" resizeMode='contain' tintColor="#abd8bff" />
             <TextInput
                 onPress={onPress}
