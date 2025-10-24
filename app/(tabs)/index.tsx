@@ -78,7 +78,7 @@ export default function Index() {
         showAllLink: '/tecnicas-golpeo'
       });
     }
-    
+
     if (trendingExercises?.length) {
       sections.push({
         type: SECTION_TYPES.TRENDING,
@@ -126,8 +126,8 @@ const renderSectionHeader = (section: Section) => {
   if (!title) return null;
 
   return (
-    <View className="flex-row justify-between items-center px-5 mb-3">
-      <Text className="text-2xl text-white font-oswaldbold">
+    <View className="flex-row justify-between items-center px-5 mb-8">
+      <Text className="text-2xl text-white font-oswaldbold tracking-wide">
         {title}
       </Text>
       {showAllLink && (
@@ -152,7 +152,7 @@ const renderSectionHeader = (section: Section) => {
         return (
           <Image 
             source={icons.logo} 
-            className="w-16 h-10 mt-20 mb-5 mx-auto" 
+            className="w-12 h-10 mt-20 mb-5 mx-auto" 
           />
         );
       
@@ -160,6 +160,7 @@ const renderSectionHeader = (section: Section) => {
         return (
           <View className="px-5 mb-8">
             <SearchBar
+              autoFocus={false}
               onPress={() => router.push('/search')}
               placeholder="¿Qué quieres hacer hoy?"
             />
@@ -218,16 +219,19 @@ const renderSectionHeader = (section: Section) => {
               horizontal
               data={item.data}
               renderItem={({ item: exerciseItem, index }) => (
-                <View style={{ 
-                  marginLeft: index === 0 ? 20 : 0, 
-                  marginRight: 16,
-                  width: 120 
-                }}>
+                <View
+                  className="mr-5"
+                  style={{
+                    marginLeft: index === 0 ? 24 : 0,
+                    width: 140,
+                  }}
+                >
                   <ExerciseCard {...exerciseItem} />
                 </View>
               )}
               keyExtractor={(exerciseItem) => exerciseItem._id}
               showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingRight: 24 }}
               removeClippedSubviews
               maxToRenderPerBatch={3}
               initialNumToRender={3}
@@ -245,7 +249,7 @@ const renderSectionHeader = (section: Section) => {
     return (
       <View className="flex-1 bg-black justify-center items-center">
         <Image 
-          source={images.pattern} 
+          source={images.bg}
           className="absolute w-full h-full opacity-25" 
           resizeMode="cover" 
         />
@@ -258,7 +262,7 @@ const renderSectionHeader = (section: Section) => {
     return (
       <View className="flex-1 bg-black justify-center items-center px-5">
         <Image 
-          source={images.pattern} 
+          source={images.bg}
           className="absolute w-full h-full opacity-25" 
           resizeMode="cover" 
         />
@@ -272,7 +276,7 @@ const renderSectionHeader = (section: Section) => {
   const sections = buildSections();
 
   return (
-    <View className="flex-1 bg-black">
+    <View className="flex-1 bg-gymshock-dark-900">
       <Image
         source={images.bg}
         className="absolute w-full h-full opacity-25 bg-backgroundImage-premiumGradient"

@@ -1,17 +1,19 @@
-import ExerciseCard from '@/components/ExerciseCard'
+import ListCard from '@/components/ListCard'
 import SearchBar from '@/components/SearchBar'
 import { icons } from '@/constants/icons'
 import { images } from '@/constants/images'
 import { fetchExercises } from '@/services/exerciseService'
 import { updateSearchCount } from '@/services/search'
 import useFetch from '@/services/usefetch'
-import { useEffect, useState } from 'react'
+import { router } from 'expo-router'
+import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, Image, Text, View } from 'react-native'
 
 const Search = () => {
     const [searchQuery, setSearchQuery] = useState('')
+    const lastUpdateQuery = useRef('')
     const {
-        data: exercises = [],
+        data: exercises,
         loading,
         error,
         refetch: loadExercises,
@@ -19,6 +21,8 @@ const Search = () => {
     } = useFetch(() => fetchExercises({
         query: searchQuery
     }), false)
+
+    const exerciseList = exercises || []
 
     const handleSearch = (text: string) => {
         setSearchQuery(text)
@@ -37,39 +41,38 @@ const Search = () => {
     }, [searchQuery, loadExercises, reset])
 
     useEffect(() => {
-        if (exercises && exercises.length > 0 && exercises[0]) {
-            updateSearchCount(searchQuery, exercises[0])
+        const query = searchQuery.trim()
+        if (exerciseList.length > 0 && query && query !== lastUpdateQuery.current) {
+            updateSearchCount(query, exerciseList[0])
+            lastUpdateQuery.current = query
         }
-    }, [exercises, searchQuery])
+    }, [exerciseList, searchQuery])
 
     return (
         <View className='bg-gymshock-dark-900 flex-1'>
             <Image source={images.bg} className="flex-1 absolute w-full h-full opacity-25 z-0" resizeMode="cover" />
 
             <FlatList
-                data={exercises || []}
-                renderItem={({ item }) => (<ExerciseCard {...item} />)}
+                data={exerciseList}
+                renderItem={({ item }) => (<ListCard exercise={item} />)}
                 keyExtractor={(item) => item._id.toString()}
                 className='px-5'
-                numColumns={3}
-                columnWrapperStyle={{
-                    justifyContent: 'center',
-                    gap: 16,
-                    marginVertical: 16
-                }}
                 contentContainerStyle={{
-                    paddingBottom: 100
+                    paddingBottom: 100,
                 }}
+                ItemSeparatorComponent={() => <View className="h-3" />}  
+
                 ListHeaderComponent={
                     <>
-                        <View className='w-full flex-row justify-center mt-20'>
-                            <Image source={icons.logo} className="w-12 h-10" />
-                        </View>
-                        <View className='my-5'>
+
+                        <View className='bg-gymshock-dark-800/95  -mx-5 px-5 pt-16 pb-4'>
                             <SearchBar
-                                placeholder='Busca un ejercicio...'
+                                placeholder='¿Que quieres hacer hoy?'
                                 value={searchQuery}
                                 onChangeText={handleSearch}
+                                showCancel={true}
+                                autoFocus={true}
+                                onCancel={() => router.back()}
                             />
                         </View>
                         {loading && (
@@ -78,11 +81,11 @@ const Search = () => {
                         {error && (
                             <Text className='text-red-500 px-5 my-3 font-oswald'>Error: {error.message}</Text>
                         )}
-                        {!loading && !error && searchQuery.trim() && exercises && exercises.length > 0 && (
-                            <Text className='text-xl text-white font-oswaldbold'>
-                                Buscaste {' '}
-                                <Text className='text-accent-cosmic font-oswaldmed'>{searchQuery}</Text>
-                            </Text>
+                        {!loading && !error && searchQuery.trim() && exerciseList.length > 0 && (
+                            <View className="flex-row items-center gap-2 px-5 pb-5 py-4">
+                                <Image source={icons.search} className="size-5" resizeMode="contain" tintColor="#abd8bff" />
+                                <Text className="text-base text-white font-spacemono "> {searchQuery} </Text>
+                            </View>
                         )}
                     </>
                 }

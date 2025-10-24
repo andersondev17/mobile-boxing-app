@@ -1,11 +1,11 @@
-//track the searches made by user 
+//track the searches made by user
 import { Exercise } from "@/interfaces/interfaces";
 import { db } from '@/lib/db';
 import { metrics } from '@/lib/db/schema';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import uuid from 'react-native-uuid';
 
-export const updateSearchCount = async (query: string, exercise: Exercise): Promise<void> => { 
+export const updateSearchCount = async (query: string, exercise: Exercise): Promise<void> => {
     try {
         const normalizedQuery = query.trim().toLowerCase();
         if (!normalizedQuery) return;
@@ -54,19 +54,37 @@ export const getTrendingExercises = async (limit: number = 10) => {
     try {
         const result = await db
             .select({
-                search_term: metrics.search_term,
-                title: metrics.title,
-                count: metrics.count,
-                poster_url: metrics.poster_url,
+                title: sql<string>`MAX(${metrics.title})`,
+                count:  sql<number>`SUM(${metrics.count})`,
+                poster_url: sql<string>`MAX(${metrics.poster_url})`,
                 exercise_id: metrics.exercise_id
             })
             .from(metrics)
-            .orderBy(desc(metrics.count))
+            .groupBy(metrics.exercise_id)
+            .orderBy(desc(sql<number>`SUM(${metrics.count})`))
             .limit(limit);
         console.log('📊 Trending results:', result);
         return result;
     } catch (error) {
         console.error('Error fetching trending exercises:', error);
         return [];
+    }
+};
+
+/**
+ * Limpia métricas huérfanas (métricas con exercise_id que no existe en la tabla exercises)
+ */
+export const cleanOrphanMetrics = async (): Promise<number> => {
+    try {
+        const result = await db.run(sql`
+            DELETE FROM metrics
+            WHERE exercise_id NOT IN (SELECT id FROM exercises)
+        `);
+
+        console.log(`✅ Métricas huérfanas eliminadas: ${result.changes} registros afectados`);
+        return result.changes || 0;
+    } catch (error) {
+        console.error('❌ Error limpiando métricas:', error);
+        throw error;
     }
 };

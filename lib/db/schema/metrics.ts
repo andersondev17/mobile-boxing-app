@@ -14,7 +14,7 @@ export const metrics = sqliteTable('metrics', {
     search_term: text('search_term').notNull(),
     count: integer('count').notNull().default(0),
     poster_url: text('poster_url').notNull(),
-    exercise_id: text('exercise_id').references(() => exercises.id),
+    exercise_id: text('exercise_id').references(() => exercises.id, { onDelete: 'cascade' }),
     title: text('title').notNull(),
     created_at: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
     updated_at: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),

@@ -1,4 +1,5 @@
 import { DatabaseContext, db, seedInitialData } from '@/lib/db/provider';
+import { cleanOrphanMetrics } from '@/services/search';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
@@ -31,6 +32,9 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
 
                 // Execute seed using your existing function
                 await seedInitialData();
+
+                // Clean orphan metrics after seeding
+                await cleanOrphanMetrics();
 
                 if (isMounted) {
                     setIsInitialized(true);
