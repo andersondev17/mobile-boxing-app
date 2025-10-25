@@ -1,4 +1,5 @@
 import { DatabaseProvider } from "@/components/DatabaseProvider";
+import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { useFonts } from "expo-font";
 import { SplashScreen, Stack } from "expo-router";
 import { useEffect } from "react";
@@ -23,19 +24,23 @@ export default function RootLayout() {
 
   return (
     <DatabaseProvider>
-      <StatusBar hidden={true} />
+      <ActionSheetProvider>
+        <>
+        <StatusBar hidden={true} />
 
-      <Stack >
-        {/* hidding header */}
-        <Stack.Screen
-          name="(tabs)"
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="exercises/[id]"
-          options={{ headerShown: false }}
-        />
-      </Stack>
+        <Stack >
+          {/* hidding header */}
+          <Stack.Screen
+            name="(tabs)"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="exercises/[id]"
+            options={{ headerShown: false }}
+          />
+        </Stack>
+        </>
+      </ActionSheetProvider>
     </DatabaseProvider>
   );
 }

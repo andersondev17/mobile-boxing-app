@@ -1,9 +1,10 @@
 import { icons } from "@/constants/icons";
 import { fetchExerciseById } from "@/services/exerciseService";
 import useFetch from "@/services/usefetch";
+import { useActionSheet } from "@expo/react-native-action-sheet";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo } from 'react';
-import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const StatsCard = React.memo(({ label, value, size = "lg" }: { label: string; value: string; size?: "lg" | "sm" }) => (
@@ -11,7 +12,7 @@ const StatsCard = React.memo(({ label, value, size = "lg" }: { label: string; va
     <Text className="text-primary-400 font-oswaldmed text-xs uppercase tracking-wider mb-1">
       {label}
     </Text>
-    <Text className={`text-white font-oswaldbold ${size === "lg" ? "text-lg" : "text-sm"} capitalize`}>
+    <Text className={`text-white font-spacemono ${size === "lg" ? "text-base" : "text-sm"} capitalize`}>
       {value}
     </Text>
   </View>
@@ -21,7 +22,7 @@ StatsCard.displayName = "StatsCard";
 
 const MuscleTag = React.memo(({ muscle }: { muscle: string }) => (
   <View className="bg-primary-500/15 backdrop-blur-sm px-5 py-3 rounded-full border border-primary-500/30">
-    <Text className="text-primary-300 font-oswaldmed text-sm">
+    <Text className="text-primary-300 font-spacemono text-sm">
       {muscle}
     </Text>
   </View>
@@ -33,6 +34,33 @@ const ExerciseDetails = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { data: exercise, loading, error } = useFetch(() => fetchExerciseById(id as string));
+  const { showActionSheetWithOptions } = useActionSheet();
+
+  const handleShare = useCallback(() => {
+    if (!exercise) return;
+
+    const options = ['Compartir Ejercicio', 'Cancelar'];
+
+    showActionSheetWithOptions({
+      options,
+      cancelButtonIndex: 1,
+      title: exercise.title,
+      tintColor: '#B8860B',
+      containerStyle: { backgroundColor: '#1a1a1f' },
+      textStyle: { color: '#ffffff', fontFamily: 'Oswald-Medium' },
+    }, async (buttonIndex) => {
+      if (buttonIndex === 0) {
+        try {
+          await Share.share({
+            message: `¡Mira este ejercicio! ${exercise.title}`,
+            url: `exercises://exercises/${exercise._id}`,
+          });
+        } catch (error) {
+          console.error('Error compartiendo ejercicio:', error);
+        }
+      }
+    });
+  }, [exercise, showActionSheetWithOptions]);
 
   // Memoized handlers
   const handleBack = useCallback(() => router.back(), [router]);
@@ -115,11 +143,11 @@ const ExerciseDetails = () => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={handleSave}
+              onPress={handleShare}
               className="w-11 h-11 rounded-full bg-black/60 backdrop-blur-sm items-center justify-center"
               activeOpacity={0.8}
             >
-              <Image source={icons.save} className="w-5 h-5" tintColor="#fff" />
+              <Image source={icons.share} className="w-5 h-5" tintColor="#fff" />
             </TouchableOpacity>
           </View>
 
@@ -137,18 +165,17 @@ const ExerciseDetails = () => {
 
         {/* Content Container */}
         <View className="px-6 -mt-8 relative z-10">
-          <View className="bg-black/95 backdrop-blur-xl rounded-3xl p-6 border border-white/10">
+          <View className="bg-[#111] backdrop-blur-xl rounded-3xl p-6 border border-white/10">
 
-            <View className="bg-primary-500 self-start px-4 py-2 rounded-full mb-6">
-              <Text className="text-white font-oswaldbold text-xs uppercase tracking-widest">
+
+            <View className="self-start px-4 py-2 rounded-full mb-6">
+              <Text className="text-white font-oswaldbold text-3xl leading-tight mb-2">
+                {exercise?.title}
+              </Text>
+              <Text className="text-light-300 font-spacemono text-xs uppercase tracking-widest">
                 {categoryDisplay}
               </Text>
             </View>
-
-            <Text className="text-white font-oswaldbold text-4xl leading-tight mb-8">
-              {exercise?.title}
-            </Text>
-
             <View className="flex-row gap-4 mb-10">
               <StatsCard label="Nivel" value={exercise?.difficulty || 'N/A'} />
               <StatsCard label="Duración" value={exercise?.duration || 'N/A'} />
@@ -173,7 +200,7 @@ const ExerciseDetails = () => {
               <Text className="text-white font-oswaldbold text-xl mb-4">
                 DESCRIPCIÓN
               </Text>
-              <Text className="text-white/90 font-oswald text-base leading-7">
+              <Text className="text-white/90 font-spacemono text-base leading-7">
                 {exercise?.description || "Descripción no disponible"}
               </Text>
             </View>
@@ -182,7 +209,7 @@ const ExerciseDetails = () => {
               <Text className="text-white font-oswaldbold text-xl mb-4">
                 TÉCNICA CORRECTA
               </Text>
-              <Text className="text-white/90 font-oswald text-base leading-7">
+              <Text className="text-white/90 font-spacemono text-base leading-7">
                 {exercise?.technique || "Técnica no disponible"}
               </Text>
             </View>

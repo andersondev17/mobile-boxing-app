@@ -1,68 +1,62 @@
 
 import { Exercise } from '@/interfaces/interfaces';
+import { Image } from 'expo-image';
 import { Link } from 'expo-router';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
+
+const DIFFICULTY_STYLES = {
+    'principiante': 'bg-primary-600/90',
+    'intermedio': 'bg-primary-400/90',
+    'avanzado': 'bg-primary-300/90',
+} as const;
 
 const ExerciseCard = ({ _id, title, posterpath, difficulty, duration }: Exercise) => {
-    const getBadgeStyle = (type: string, value: string) => {
-        const styles = {
-            difficulty: {
-                'principiante': 'bg-accent-gold-600',
-                'intermedio': 'bg-accent-gold-400',
-                'avanzado': 'bg-accent-gold-200',
-            } as {[key: string]: string},
-            duration: 'bg-primary-500/20'
-        };
+    const difficultyStyle = DIFFICULTY_STYLES[difficulty.toLowerCase() as keyof typeof DIFFICULTY_STYLES]
+        || DIFFICULTY_STYLES.principiante;
 
-        return type === 'difficulty'
-            ? styles.difficulty[value.toLowerCase()] || styles.difficulty.principiante
-            : styles.duration;
-    };
     return (
         <Link href={`/exercises/${_id}`} asChild>
             <TouchableOpacity
-                className="w-[140px] rounded-xl overflow-hidden mx-1"
-                activeOpacity={0.9}
+                className="w-[140px] rounded-2xl overflow-hidden bg-gymshock-dark-800"
+                activeOpacity={0.85}
                 style={{
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 8,
-                    elevation: 6,
+                    shadowColor: '#B8860B',
+                    shadowOffset: { width: 0, height: 6 },
+                    shadowOpacity: 0.4,
+                    shadowRadius: 12,
+                    elevation: 8,
                 }}
             >
                 <View className='relative'>
-                    {/* Image with subtle overlay  */}
-                    <View className="relative">
-                        <Image
-                            source={{
-                                uri: posterpath || 'https://via.placeholder.com/600x400/1a1a1a/ffffff.png'
-                            }}
-                            className='w-full h-52 rounded-xl'
-                            resizeMode='cover'
-                        />
+                    <Image
+                        source={{
+                            uri: posterpath || 'https://via.placeholder.com/600x400/1a1a1a/ffffff.png'
+                        }}
+                        style={{ width: '100%', height: 200 }}
+                        className='w-full h-[200px]'
+                        autoplay={false}
+                    />
                         {/* Subtle dark overlay */}
-                        <View className="absolute inset-0 bg-black/20 rounded-xl" />
-                    </View>
+                    <View className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
-                    <View className={`absolute top-3 left-3 px-3  border backdrop-blur-sm ${getBadgeStyle('difficulty', difficulty)}`}>
-                        <Text className="text-white font-oswaldmed text-[10px] uppercase tracking-wide">
+                    <View className={`absolute top-3 left-3 px-3 py-1 rounded-full ${difficultyStyle}`}>
+                        <Text className="text-white font-oswaldmed text-[10px] uppercase tracking-wider">
                             {difficulty}
                         </Text>
                     </View>
                 </View>
 
-                <View className='flex-row items-center justify-start mt-2'>
-                    <View className="bg-primary-500/20 px-2 py-1 rounded-full ">
-                        <Text
-                            className='text-sm font-oswaldmed text-white uppercase tracking-wide'
-                            numberOfLines={1}
-                        >
-                            {title} · <Text className='text-primary-400 font-spacemono text-[10px] uppercase'>{duration}</Text>
-                        </Text>
-                    </View>
+                <View className='px-3 py-3'>
+                    <Text
+                        className='text-sm font-oswaldmed text-white tracking-wide'
+                        numberOfLines={1}
+                    >
+                        {title}
+                    </Text>
+                    <Text className='text-primary-400 font-spacemono text-xs uppercase mt-1'>
+                        {duration}
+                    </Text>
                 </View>
-
             </TouchableOpacity>
         </Link>
     )

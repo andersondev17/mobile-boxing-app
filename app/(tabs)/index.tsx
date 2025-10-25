@@ -14,16 +14,17 @@ interface Section {
   type: string;
   id: string;
   title?: string;
+  subtitle?: string;
   data?: any[];
   showAllLink?: string; //  "link Ver todos"
 }
 
 const SECTION_TYPES = {
   HEADER: 'header',
-  SEARCH: 'search', 
+  SEARCH: 'search',
   TRENDING: 'trending',
   TECNICAS_GOLPEO: 'tecnicas_golpeo',
-  DEFENSA: 'defensa', 
+  DEFENSA: 'defensa',
   FUERZA: 'fuerza',
   EXERCISES: 'exercises'
 } as const;
@@ -65,7 +66,6 @@ export default function Index() {
   const buildSections = (): Section[] => {
     const sections: Section[] = [
       { type: SECTION_TYPES.HEADER, id: 'header' },
-      { type: SECTION_TYPES.SEARCH, id: 'search' },
     ];
 
 
@@ -73,7 +73,8 @@ export default function Index() {
       sections.push({
         type: SECTION_TYPES.TECNICAS_GOLPEO,
         id: 'tecnicas_golpeo',
-        title: 'Técnicas de Golpeo',
+        title: 'Técnicas',
+        subtitle: 'Mejora tu tecnica de golpeo',
         data: tecnicasGolpeo.slice(0, 10),
         showAllLink: '/tecnicas-golpeo'
       });
@@ -83,16 +84,18 @@ export default function Index() {
       sections.push({
         type: SECTION_TYPES.TRENDING,
         id: 'trending',
-        title: ' POPULARES HOY',
+        title: 'Top 10',
+        subtitle: 'Los mas completados hoy',
         data: trendingExercises,
       });
-    }  
+    }
 
     if (tecnicasDefensa?.length) {
       sections.push({
         type: SECTION_TYPES.DEFENSA,
         id: 'defensa',
         title: 'Defensa',
+        subtitle: 'Fundamentos esenciales',
         data: tecnicasDefensa.slice(0, 4), // Solo 4 para lista vertical
         showAllLink: '/defensa'
       });
@@ -102,7 +105,8 @@ export default function Index() {
       sections.push({
         type: SECTION_TYPES.FUERZA,
         id: 'fuerza',
-        title: 'Fuerza y Acondicionamiento',
+        title: 'Fuerza',
+        subtitle: 'Mantente en forma',
         data: ejerciciosFuerza.slice(0, 10),
         showAllLink: '/fuerza'
       });
@@ -111,8 +115,9 @@ export default function Index() {
     if (exercises?.length) {
       sections.push({
         type: SECTION_TYPES.EXERCISES,
-        id: 'exercises', 
+        id: 'exercises',
         title: ' Últimos ejercicios',
+        
         data: exercises.slice(0, 10),
         showAllLink: '/exercises'
       });
@@ -121,22 +126,32 @@ export default function Index() {
     return sections;
   };
 
-const renderSectionHeader = (section: Section) => {
-  const { title, showAllLink } = section;
+  const renderSectionHeader = (section: Section) => {
+  const { title, subtitle, showAllLink } = section;
   if (!title) return null;
 
   return (
-    <View className="flex-row justify-between items-center px-5 mb-8">
-      <Text className="text-2xl text-white font-oswaldbold tracking-wide">
-        {title}
-      </Text>
+    <View className="flex-row justify-between items-start px-5 mb-6 mt-8">
+      <View className="flex-1">
+        <Text className="text-2xl text-white font-oswaldbold tracking-wide ">
+          {title}
+        </Text>
+        {subtitle && (
+          <Text 
+            className="text-xs text-white/60 font-spacemono mt-1 uppercase"
+            style={{ letterSpacing: 1.5 }}
+          >
+            {subtitle}
+          </Text>
+        )}
+      </View>
       {showAllLink && (
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => router.push(showAllLink as any)}
-          className="p-2"
+          className="p-2 ml-2"
         >
-          <Image 
-            source={icons.arrow} 
+          <Image
+            source={icons.arrow}
             className="w-6 h-6 bg-primary-500 rounded-xl"
           />
         </TouchableOpacity>
@@ -150,23 +165,23 @@ const renderSectionHeader = (section: Section) => {
     switch (item.type) {
       case SECTION_TYPES.HEADER:
         return (
-          <Image 
-            source={icons.logo} 
-            className="w-12 h-10 mt-20 mb-5 mx-auto" 
-          />
-        );
-      
-      case SECTION_TYPES.SEARCH:
-        return (
-          <View className="px-5 mb-8">
+          <View className="flex-row items-center px-5 pt-16 pb-4 bg-gymshock-dark-900/95">
+            <Image
+              source={icons.logo}
+              className="w-10 h-8 mr-3"
+            />
+            <View className="flex-1"> 
             <SearchBar
               autoFocus={false}
               onPress={() => router.push('/search')}
               placeholder="¿Qué quieres hacer hoy?"
             />
+            </View>
           </View>
+
         );
-      
+
+
       case SECTION_TYPES.TRENDING:
         return (
           <View className="mb-6">
@@ -175,14 +190,14 @@ const renderSectionHeader = (section: Section) => {
               horizontal
               data={item.data}
               renderItem={({ item: trendingItem, index }) => (
-                <View style={{ 
-                  marginLeft: index === 0 ? 30 : 0, 
-                  marginRight: 30
+                <View style={{
+                  marginLeft: index === 0 ? 50 : 0,
+                  marginRight: 50
                 }}>
                   <TrendingCard exercise={trendingItem} index={index} />
                 </View>
               )}
-              keyExtractor={(trendingItem, index) => 
+              keyExtractor={(trendingItem, index) =>
                 trendingItem.exercise_id?.toString() || `trending-${index}`
               }
               showsHorizontalScrollIndicator={false}
@@ -192,7 +207,7 @@ const renderSectionHeader = (section: Section) => {
             />
           </View>
         );
-    
+
 
       case SECTION_TYPES.DEFENSA:
         return (
@@ -200,9 +215,9 @@ const renderSectionHeader = (section: Section) => {
             {renderSectionHeader(item)}
             <View>
               {item.data?.map((exerciseItem) => (
-                <ListCard 
-                  key={exerciseItem._id} 
-                  exercise={exerciseItem} 
+                <ListCard
+                  key={exerciseItem._id}
+                  exercise={exerciseItem}
                 />
               ))}
             </View>
@@ -248,10 +263,10 @@ const renderSectionHeader = (section: Section) => {
   if (exercisesLoading || trendingLoading || golpeoLoading || defensaLoading || fuerzaLoading) {
     return (
       <View className="flex-1 bg-black justify-center items-center">
-        <Image 
+        <Image
           source={images.bg}
-          className="absolute w-full h-full opacity-25" 
-          resizeMode="cover" 
+          className="absolute w-full h-full opacity-25"
+          resizeMode="cover"
         />
         <ActivityIndicator size="large" color="#FF6B35" />
       </View>
@@ -261,10 +276,10 @@ const renderSectionHeader = (section: Section) => {
   if (exercisesError || trendingError || golpeoError || defensaError || fuerzaError) {
     return (
       <View className="flex-1 bg-black justify-center items-center px-5">
-        <Image 
+        <Image
           source={images.bg}
-          className="absolute w-full h-full opacity-25" 
-          resizeMode="cover" 
+          className="absolute w-full h-full opacity-25"
+          resizeMode="cover"
         />
         <Text className="text-white text-center">
           Error: {exercisesError?.message || trendingError?.message}
@@ -293,6 +308,8 @@ const renderSectionHeader = (section: Section) => {
         maxToRenderPerBatch={2}
         initialNumToRender={2}
         windowSize={3}
+        stickyHeaderIndices={[0]}
+        stickyHeaderHiddenOnScroll={true}
       />
     </View>
   );

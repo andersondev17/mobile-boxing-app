@@ -57,6 +57,7 @@ const Search = () => {
                 renderItem={({ item }) => (<ListCard exercise={item} />)}
                 keyExtractor={(item) => item._id.toString()}
                 className='px-5'
+                stickyHeaderIndices={[0]}
                 contentContainerStyle={{
                     paddingBottom: 100,
                 }}
