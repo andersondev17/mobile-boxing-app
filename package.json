@@ -1,0 +1,27 @@
+{
+    "name": "gymshock-app-monorepo",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "mobile": "cd apps/mobile && npx expo start",
+        "mobile:android": "cd apps/mobile && npx expo run:android",
+        "mobile:ios": "cd apps/mobile && npx expo run:ios",
+        "mobile:web": "cd apps/mobile && npx expo start --web",
+        "mobile:reset": "cd apps/mobile && npm run reset-project",
+        "mobile:lint": "cd apps/mobile && npm run lint",
+        "mobile:db:generate": "cd apps/mobile && npm run db:generate",
+        "mobile:db:push": "cd apps/mobile && npm run db:push",
+        "mobile:db:studio": "cd apps/mobile && npm run db:studio",
+        "mobile:db:seed": "cd apps/mobile && npm run db:seed",
+        "backend": "cd apps/backend && python -m uvicorn main:app --reload",
+        "dev": "concurrently \"npm run mobile\" \"npm run backend\""
+    },
+    "workspaces": [
+        "apps/*"
+    ],
+    "devDependencies": {
+        "concurrently": "^8.2.0"
+    },
+    "packageManager": "npm@10.0.0"
+}
