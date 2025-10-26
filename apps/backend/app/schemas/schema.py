@@ -8,6 +8,6 @@ class UserBase(BaseModel):
     role: str
     email_verified: int
     created_at: datetime
-
+    
     class Config:
         orm_mode = True
