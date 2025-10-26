@@ -1,8 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from config.database import engine
+from config import engine, get_db
+from models import Base
+from routes import user_route
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+app.include_router(user_route)
 
 app.add_middleware(
     CORSMiddleware,
