@@ -2,17 +2,22 @@ import { icons } from "@/constants/icons";
 import { fetchExerciseById } from "@/services/exerciseService";
 import useFetch from "@/services/usefetch";
 import { useActionSheet } from "@expo/react-native-action-sheet";
+import { Image } from "expo-image";
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo } from 'react';
-import { ActivityIndicator, Image, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from "react-native-safe-area-context";
 
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const HERO_HEIGHT = SCREEN_HEIGHT * 0.92;
+
 const StatsCard = React.memo(({ label, value, size = "lg" }: { label: string; value: string; size?: "lg" | "sm" }) => (
-  <View className="flex-1 bg-gymshock-dark-800/50 backdrop-blur-sm p-4 rounded-2xl border border-white/5">
-    <Text className="text-primary-400 font-oswaldmed text-xs uppercase tracking-wider mb-1">
+  <View className="flex-1 bg-white/10 backdrop-blur-md p-3.5 rounded-xl border border-white/20">
+    <Text className="text-primary-300 font-oswaldmed text-[10px] uppercase tracking-wider mb-0.5" numberOfLines={1}>
       {label}
     </Text>
-    <Text className={`text-white font-spacemono ${size === "lg" ? "text-base" : "text-sm"} capitalize`}>
+    <Text className={`text-white font-spacemono ${size === "lg" ? "text-sm" : "text-xs"} capitalize font-semibold`}>
       {value}
     </Text>
   </View>
@@ -21,8 +26,8 @@ StatsCard.displayName = "StatsCard";
 
 
 const MuscleTag = React.memo(({ muscle }: { muscle: string }) => (
-  <View className="bg-primary-500/15 backdrop-blur-sm px-5 py-3 rounded-full border border-primary-500/30">
-    <Text className="text-primary-300 font-spacemono text-sm">
+  <View className="bg-primary-500/20 px-4 py-2 rounded-full border border-primary-400/40">
+    <Text className="text-primary-200 font-spacemono text-xs">
       {muscle}
     </Text>
   </View>
@@ -39,24 +44,22 @@ const ExerciseDetails = () => {
   const handleShare = useCallback(() => {
     if (!exercise) return;
 
-    const options = ['Compartir Ejercicio', 'Cancelar'];
-
     showActionSheetWithOptions({
-      options,
+      options: ['Compartir Ejercicio', 'Cancelar'],
       cancelButtonIndex: 1,
       title: exercise.title,
-      tintColor: '#B8860B',
+      tintColor: '#C29B2E',
       containerStyle: { backgroundColor: '#1a1a1f' },
       textStyle: { color: '#ffffff', fontFamily: 'Oswald-Medium' },
     }, async (buttonIndex) => {
       if (buttonIndex === 0) {
         try {
           await Share.share({
-            message: `¡Mira este ejercicio! ${exercise.title}`,
+            message: `${exercise.title} - ¡Mira este ejercicio!`,
             url: `exercises://exercises/${exercise._id}`,
           });
-        } catch (error) {
-          console.error('Error compartiendo ejercicio:', error);
+        } catch (err) {
+          console.error('Error compartiendo ejercicio:', err);
         }
       }
     });
@@ -64,10 +67,6 @@ const ExerciseDetails = () => {
 
   // Memoized handlers
   const handleBack = useCallback(() => router.back(), [router]);
-  const handleSave = useCallback(() => {
-    // TODO: Implement save functionality
-    console.log('Save exercise:', exercise?.title);
-  }, [exercise?.title]);
   const handleAITechnique = useCallback(() => {
     // TODO: Navigate to AI technique 
     console.log('AI Technique for:', exercise?.title);
@@ -87,13 +86,13 @@ const ExerciseDetails = () => {
   if (loading) {
     return (
       <SafeAreaView className="bg-black flex-1 justify-center items-center">
-        <ActivityIndicator size="large" color="#FF6B35" />
-        <Text className="text-white/60 mt-4 font-oswald">Loading workout...</Text>
+        <ActivityIndicator size="large" color="#C29B2E" />
+        <Text className="text-white/60 mt-4 font-oswald">Cargando...</Text>
       </SafeAreaView>
     );
   }
 
-  if (error) {
+  if (error || !exercise) {
     return (
       <SafeAreaView className="bg-black flex-1 justify-center items-center px-6">
         <Text className="text-white font-oswaldbold text-xl mb-4 text-center">
@@ -102,6 +101,7 @@ const ExerciseDetails = () => {
         <TouchableOpacity
           onPress={handleBack}
           className="bg-primary-500 px-6 py-3 rounded-xl"
+          activeOpacity={0.8}
         >
           <Text className="text-white font-oswaldmed">Volver</Text>
         </TouchableOpacity>
@@ -114,124 +114,152 @@ const ExerciseDetails = () => {
 
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
         bounces={false}
         scrollEventThrottle={16}
-        removeClippedSubviews={true}
       >
         {/* Hero Section */}
-        <View className="relative">
+        <View style={{ height: HERO_HEIGHT }} className="relative">
           <Image
-            source={{
-              uri: exercise?.posterpath || 'https://via.placeholder.com/600x400/1a1a1a/ffffff.png'
-            }}
-            className="w-full h-[60vh]"
-            resizeMode="cover"
-            onError={() => console.log('Image load error')}
+            source={{ uri: exercise.posterpath }}
+            style={{ width: '100%', height: '100%' }}
+            contentFit="cover"
+            transition={300}
+          />
+
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.95)']}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
           />
 
           {/* Header Controls */}
-          <View className="absolute top-16 left-0 right-0 flex-row justify-between items-center px-6">
+          <View className="absolute top-14 left-0 right-0 flex-row justify-between items-center px-5">
             <TouchableOpacity
               onPress={handleBack}
-              className="w-11 h-11 rounded-full bg-black/60 backdrop-blur-sm items-center justify-center"
-              activeOpacity={0.8}
-              accessibilityRole="button"
+              className="w-10 h-10 rounded-full  backdrop-blur-md items-center justify-center"
+              activeOpacity={0.7}
             >
-              <Image source={icons.arrow} className="w-5 h-5 rotate-180" tintColor="#fff" />
+              <Image source={icons.back} style={{ width: 20, height: 20 }} tintColor="#fff" />
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={handleShare}
-              className="w-11 h-11 rounded-full bg-black/60 backdrop-blur-sm items-center justify-center"
-              activeOpacity={0.8}
+              className="w-10 h-10 rounded-full backdrop-blur-md items-center justify-center"
+              activeOpacity={0.7}
             >
-              <Image source={icons.share} className="w-5 h-5" tintColor="#fff" />
+              <Image source={icons.share} style={{ width: 18, height: 18 }} tintColor="#fff" />
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            onPress={handleAITechnique}
-            className="absolute bottom-16 right-6"
-            activeOpacity={0.9}
-          >
-            <View className="bg-accent-neon rounded-2xl px-6 py-4 flex-row items-center shadow-2xl">
-              <Image source={icons.play} className="w-5 h-5 mr-3" tintColor="#fff" />
-              <Text className="text-white font-oswaldbold text-sm">TÉCNICA IA</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Content Container */}
-        <View className="px-6 -mt-8 relative z-10">
-          <View className="bg-[#111] backdrop-blur-xl rounded-3xl p-6 border border-white/10">
-
-
-            <View className="self-start px-4 py-2 rounded-full mb-6">
-              <Text className="text-white font-oswaldbold text-3xl leading-tight mb-2">
-                {exercise?.title}
+          <View className="absolute bottom-0 left-0 right-0 px-6 pb-20">
+            <View className="mb-5">
+              <Text className="text-white font-oswaldbold text-4xl mb-2">
+                {exercise.title}
               </Text>
-              <Text className="text-light-300 font-spacemono text-xs uppercase tracking-widest">
+              <Text className="text-white/70 font-spacemono text-xs uppercase tracking-widest">
                 {categoryDisplay}
               </Text>
             </View>
-            <View className="flex-row gap-4 mb-10">
-              <StatsCard label="Nivel" value={exercise?.difficulty || 'N/A'} />
-              <StatsCard label="Duración" value={exercise?.duration || 'N/A'} />
+            <View className="flex-row gap-3 mb-5">
+              <StatsCard label="Nivel" value={exercise.difficulty || 'N/A'} />
+              <StatsCard label="Duración" value={exercise.duration || 'N/A'} />
               <StatsCard label="Equipo" value={equipmentDisplay} size="sm" />
             </View>
 
-            {/* Target Muscles */}
-            {exercise?.muscles && exercise.muscles.length > 0 && (
-              <View className="mb-10">
-                <Text className="text-white font-oswaldbold text-xl mb-6">
-                  MÚSCULOS OBJETIVO
-                </Text>
-                <View className="flex-row flex-wrap gap-3">
-                  {exercise?.muscles.map((muscle, index) => (
+            <TouchableOpacity
+              onPress={handleAITechnique}
+              className="bg-[#C29B2E] py-4 rounded-full items-center justify-center flex-row"
+              activeOpacity={0.85}
+            >
+              <Image source={icons.play} style={{ width: 20, height: 20 }} tintColor="#fff" />
+              <Text className="text-white font-oswaldbold text-base ml-3 uppercase tracking-wide">
+                Aprender Técnica con IA
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Content Section  */}
+        <View className="bg-black px-5 pb-20">
+          <View className="rounded-3xl overflow-hidden mb-5 -mt-12" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 16, elevation: 12 }}>
+            {/* Background Image */}
+            <View style={{ height: 200 }} className="relative">
+              <Image
+                source={{ uri: exercise.posterpath }}
+                style={{ width: '100%', height: '100%' }}
+                contentFit="cover"
+                autoplay={false}
+              />
+              <LinearGradient
+                colors={['transparent', 'rgba(17,17,17,0.8)', '#111111']}
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+              />
+            </View>
+
+            {/* Card Content */}
+            <View className="bg-[#111] px-6 pb-6">
+              <Text className="text-white font-oswaldbold text-2xl mb-2 -mt-2">
+                Sobre este ejercicio
+              </Text>
+              <Text className="text-white/60 font-spacemono text-xs mb-4">
+                {categoryDisplay} · {exercise.difficulty}
+              </Text>
+              <Text className="text-white/80 font-spacemono text-sm leading-6 mb-5">
+                {exercise.description || "Descripción no disponible"}
+              </Text>
+
+              {/* Muscles Tags */}
+              {exercise.muscles?.length > 0 && (
+                <View className="flex-row flex-wrap gap-2">
+                  {exercise.muscles.map((muscle, index) => (
                     <MuscleTag key={`${muscle}-${index}`} muscle={muscle} />
                   ))}
                 </View>
-              </View>
-            )}
+              )}
+            </View>
+          </View>
 
-            <View className="mb-8">
-              <Text className="text-white font-oswaldbold text-xl mb-4">
-                DESCRIPCIÓN
-              </Text>
-              <Text className="text-white/90 font-spacemono text-base leading-7">
-                {exercise?.description || "Descripción no disponible"}
+          {/* Technique Card */}
+          {exercise.technique && (
+            <View className="bg-[#111] rounded-3xl p-6 mb-5 border border-white/5">
+              <View className="flex-row items-center mb-4">
+                <View className="w-10 h-10 rounded-full bg-primary-500/20 items-center justify-center mr-3">
+                  <Text className="text-primary-400 text-xl">✓</Text>
+                </View>
+                <Text className="text-white font-oswaldbold text-xl flex-1">
+                  Técnica Correcta
+                </Text>
+              </View>
+              <Text className="text-white/80 font-spacemono text-sm leading-6">
+                {exercise.technique}
               </Text>
             </View>
+          )}
 
-            <View className="mb-6">
-              <Text className="text-white font-oswaldbold text-xl mb-4">
-                TÉCNICA CORRECTA
-              </Text>
-              <Text className="text-white/90 font-spacemono text-base leading-7">
-                {exercise?.technique || "Técnica no disponible"}
-              </Text>
+          {/* Additional Info Card */}
+          <View className="bg-[#111] rounded-3xl p-6 border border-white/5">
+            <Text className="text-white font-oswaldbold text-xl mb-4">
+              Información Adicional
+            </Text>
+            <View className="space-y-3">
+              <View className="flex-row justify-between items-center py-2 border-b border-white/5">
+                <Text className="text-white/60 font-spacemono text-sm">Categoría</Text>
+                <Text className="text-white font-spacemono text-sm capitalize">{categoryDisplay}</Text>
+              </View>
+              <View className="flex-row justify-between items-center py-2 border-b border-white/5">
+                <Text className="text-white/60 font-spacemono text-sm">Nivel</Text>
+                <Text className="text-white font-spacemono text-sm capitalize">{exercise.difficulty}</Text>
+              </View>
+              <View className="flex-row justify-between items-center py-2">
+                <Text className="text-white/60 font-spacemono text-sm">Equipo</Text>
+                <Text className="text-white font-spacemono text-sm capitalize">{equipmentDisplay}</Text>
+              </View>
             </View>
           </View>
         </View>
       </ScrollView>
-
-      <View className="absolute bottom-0 left-0 right-0">
-        <View className="bg-gradient-to-t from-black via-black/95 to-transparent pt-8 pb-10 px-6">
-          <TouchableOpacity
-            onPress={handleBack}
-            className="w-full bg-primary-500 py-5 rounded-2xl items-center justify-center shadow-2xl"
-            activeOpacity={0.9}
-          >
-            <Text className="text-white font-oswaldbold text-lg">
-              Volver
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
     </View>
-  )
+  );
 }
 
-export default ExerciseDetails
+export default ExerciseDetails;
