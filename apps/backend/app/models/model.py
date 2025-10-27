@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, TIMESTAMP, func, ForeignKey, Boolean, Json
+from sqlalchemy import Column, Integer, String, TIMESTAMP, func, ForeignKey, Boolean, JSON
 from config import Base
 
 class User(Base):
@@ -12,7 +12,7 @@ class User(Base):
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
 class Role(Base):
-    __table__ = "role"
+    __tablename__ = "role"
 
     id = Column(String, primary_key=True)
     description = Column(String)
@@ -24,11 +24,11 @@ class Training(Base):
     user_id= Column(String, ForeignKey("user.id"))
     title = Column(String)
     status = Column(Boolean)
-    started_at = Column(TIMESTAMP(timezone=True), server_Default=func.now())
+    started_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     ended_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
 class Exercise(Base):
-    __table__ = "exercise"
+    __tablename__ = "exercise"
 
     id = Column(String, primary_key=True)
     title = Column(String)
@@ -38,7 +38,7 @@ class Exercise(Base):
     duration_min = Column(String)
     description = Column(String)
     technique = Column(String)
-    muscles = Column(Json)
+    muscles = Column(JSON)
     equipment = Column(String)
 
 class PosterUrl(Base):
