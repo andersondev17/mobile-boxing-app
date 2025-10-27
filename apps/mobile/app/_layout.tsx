@@ -26,7 +26,7 @@ export default function RootLayout() {
     <DatabaseProvider>
       <ActionSheetProvider>
         <>
-        <StatusBar hidden={true} />
+        <StatusBar hidden={false} />
 
         <Stack >
           {/* hidding header */}

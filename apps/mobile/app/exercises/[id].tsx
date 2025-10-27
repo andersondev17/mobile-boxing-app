@@ -1,4 +1,5 @@
 import { icons } from "@/constants/icons";
+import { images } from "@/constants/images";
 import { fetchExerciseById } from "@/services/exerciseService";
 import useFetch from "@/services/usefetch";
 import { useActionSheet } from "@expo/react-native-action-sheet";
@@ -13,7 +14,7 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const HERO_HEIGHT = SCREEN_HEIGHT * 0.92;
 
 const StatsCard = React.memo(({ label, value, size = "lg" }: { label: string; value: string; size?: "lg" | "sm" }) => (
-  <View className="flex-1 bg-white/10 backdrop-blur-md p-3.5 rounded-xl border border-white/20">
+  <View className="flex-1 bg-gymshock-dark-800/10 backdrop-blur-md p-3.5 rounded-xl border border-white/20">
     <Text className="text-primary-300 font-oswaldmed text-[10px] uppercase tracking-wider mb-0.5" numberOfLines={1}>
       {label}
     </Text>
@@ -85,7 +86,7 @@ const ExerciseDetails = () => {
 
   if (loading) {
     return (
-      <SafeAreaView className="bg-black flex-1 justify-center items-center">
+      <SafeAreaView className="bg-gymshock-dark-900 flex-1 justify-center items-center">
         <ActivityIndicator size="large" color="#C29B2E" />
         <Text className="text-white/60 mt-4 font-oswald">Cargando...</Text>
       </SafeAreaView>
@@ -94,7 +95,7 @@ const ExerciseDetails = () => {
 
   if (error || !exercise) {
     return (
-      <SafeAreaView className="bg-black flex-1 justify-center items-center px-6">
+      <SafeAreaView className="bg-gymshock-dark-900 flex-1 justify-center items-center px-6">
         <Text className="text-white font-oswaldbold text-xl mb-4 text-center">
           Error al cargar ejercicio
         </Text>
@@ -110,7 +111,7 @@ const ExerciseDetails = () => {
   }
 
   return (
-    <View className="bg-black flex-1">
+    <View className="bg-gymshock-dark-900 flex-1">
 
 
       <ScrollView
@@ -168,11 +169,10 @@ const ExerciseDetails = () => {
 
             <TouchableOpacity
               onPress={handleAITechnique}
-              className="bg-[#C29B2E] py-4 rounded-full items-center justify-center flex-row"
-              activeOpacity={0.85}
+              className="bg-[#C29B2E] shadow-zinc-300 py-4 my-5 rounded-full w-full items-center justify-center flex-row"
             >
               <Image source={icons.play} style={{ width: 20, height: 20 }} tintColor="#fff" />
-              <Text className="text-white font-oswaldbold text-base ml-3 uppercase tracking-wide">
+              <Text className="text-white text-lg font-spacemono ml-3 uppercase tracking-wide">
                 Aprender Técnica con IA
               </Text>
             </TouchableOpacity>
@@ -180,7 +180,11 @@ const ExerciseDetails = () => {
         </View>
 
         {/* Content Section  */}
-        <View className="bg-black px-5 pb-20">
+        <View className=" px-5 pb-20">
+          <Image
+            source={images.bg}
+            className="absolute w-full h-full opacity-25 bg-backgroundImage-premiumGradient"
+          />
           <View className="rounded-3xl overflow-hidden mb-5 -mt-12" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 16, elevation: 12 }}>
             {/* Background Image */}
             <View style={{ height: 200 }} className="relative">
@@ -197,7 +201,7 @@ const ExerciseDetails = () => {
             </View>
 
             {/* Card Content */}
-            <View className="bg-[#111] px-6 pb-6">
+            <View className="bg-gymshock-dark-800/95  px-6 pb-6">
               <Text className="text-white font-oswaldbold text-2xl mb-2 -mt-2">
                 Sobre este ejercicio
               </Text>
@@ -221,7 +225,7 @@ const ExerciseDetails = () => {
 
           {/* Technique Card */}
           {exercise.technique && (
-            <View className="bg-[#111] rounded-3xl p-6 mb-5 border border-white/5">
+            <View className="bg-gymshock-dark-800/95  rounded-3xl p-6 mb-5 border border-white/5">
               <View className="flex-row items-center mb-4">
                 <View className="w-10 h-10 rounded-full bg-primary-500/20 items-center justify-center mr-3">
                   <Text className="text-primary-400 text-xl">✓</Text>
@@ -237,7 +241,7 @@ const ExerciseDetails = () => {
           )}
 
           {/* Additional Info Card */}
-          <View className="bg-[#111] rounded-3xl p-6 border border-white/5">
+          <View className="bg-gymshock-dark-800/95  rounded-3xl p-6 border border-white/5">
             <Text className="text-white font-oswaldbold text-xl mb-4">
               Información Adicional
             </Text>

@@ -151,8 +151,10 @@ export default function Index() {
           className="p-2 ml-2"
         >
           <Image
-            source={icons.arrow}
-            className="w-6 h-6 bg-primary-500 rounded-xl"
+            source={icons.back}
+            className="w-5 h-5 tint-white/60"
+            style={{ transform: [{ rotate: '180deg' }] }}
+            tintColor="#fff"
           />
         </TouchableOpacity>
       )}

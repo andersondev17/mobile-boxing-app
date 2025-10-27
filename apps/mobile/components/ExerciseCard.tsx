@@ -1,6 +1,7 @@
 
 import { Exercise } from '@/interfaces/interfaces';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
 import { Text, TouchableOpacity, View } from 'react-native';
 
@@ -17,7 +18,7 @@ const ExerciseCard = ({ _id, title, posterpath, difficulty, duration }: Exercise
     return (
         <Link href={`/exercises/${_id}`} asChild>
             <TouchableOpacity
-                className="w-[140px] rounded-2xl overflow-hidden bg-gymshock-dark-800"
+                className="w-[140px] h-[250px] rounded-2xl overflow-hidden relative"
                 activeOpacity={0.85}
                 style={{
                     shadowColor: '#B8860B',
@@ -27,33 +28,34 @@ const ExerciseCard = ({ _id, title, posterpath, difficulty, duration }: Exercise
                     elevation: 8,
                 }}
             >
-                <View className='relative'>
-                    <Image
-                        source={{
-                            uri: posterpath || 'https://via.placeholder.com/600x400/1a1a1a/ffffff.png'
-                        }}
-                        style={{ width: '100%', height: 200 }}
-                        className='w-full h-[200px]'
-                        autoplay={false}
-                    />
-                        {/* Subtle dark overlay */}
-                    <View className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                <Image
+                    source={{
+                        uri: posterpath || 'https://via.placeholder.com/600x400/1a1a1a/ffffff.png'
+                    }}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                    autoplay={false}
+                />
 
-                    <View className={`absolute top-3 left-3 px-3 py-1 rounded-full ${difficultyStyle}`}>
-                        <Text className="text-white font-oswaldmed text-[10px] uppercase tracking-wider">
-                            {difficulty}
-                        </Text>
-                    </View>
+                <LinearGradient
+                    colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.95)']}
+                    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                />
+
+                <View className={`absolute top-3 left-3 px-3 py-1 rounded-full ${difficultyStyle} backdrop-blur-md border border-white/20`}>
+                    <Text className="text-white font-oswaldmed text-[10px] uppercase tracking-wider">
+                        {difficulty}
+                    </Text>
                 </View>
 
-                <View className='px-3 py-3'>
+                <View className="absolute bottom-3 left-3 right-3">
                     <Text
-                        className='text-sm font-oswaldmed text-white tracking-wide'
+                        className="text-sm font-oswaldbold text-white tracking-wide mb-1"
                         numberOfLines={1}
                     >
                         {title}
                     </Text>
-                    <Text className='text-primary-400 font-spacemono text-xs uppercase mt-1'>
+                    <Text className="text-primary-400 font-spacemono text-[10px] uppercase tracking-widest">
                         {duration}
                     </Text>
                 </View>
