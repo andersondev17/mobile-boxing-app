@@ -37,4 +37,3 @@ class ExerciseBase(BaseModel):
 
     class Config:
         from_attributes = True
-
