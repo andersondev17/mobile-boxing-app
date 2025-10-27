@@ -34,3 +34,6 @@ class ExerciseBase(BaseModel):
     technique: str
     muscles: dict
     equipment: str
+
+    class Config:
+        from_attributes = True
