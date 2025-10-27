@@ -1,4 +1,4 @@
-from fastapi import APIRoute, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exec import SQLAlchemyError
 from config import get_db
@@ -6,8 +6,9 @@ from models import Training
 from schemas import TrainingBase
 from typing import Annotated, List
 
-router = APIRoute(prefix="/training", tags=["training"])
+router = APIRouter(prefix="/training", tags=["training"])
 
+#dependencia sesion local
 db_dependency = Annotated[Session, Depends(get_db)]
 
 @router.get("/", response_model=List[TrainingBase], status_code=status.HTTP_200_OK)
