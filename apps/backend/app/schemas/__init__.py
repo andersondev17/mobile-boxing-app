@@ -1,1 +1,1 @@
-from .schema import UserBase
+from .schema import UserBase, TrainingBase, ExerciseBase
