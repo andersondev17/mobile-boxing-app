@@ -25,8 +25,6 @@ const mapDbExerciseToExercise = (ex: typeof exercises.$inferSelect): Exercise =>
 
 export const fetchExercises = async ({ query }: { query: string }): Promise<Exercise[]> => {
     try {
-        await new Promise(resolve => setTimeout(resolve, 300));
-
         const dbExercises = query.trim()
             ? await db
                 .select()
