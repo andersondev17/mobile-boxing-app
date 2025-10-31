@@ -50,3 +50,8 @@ class TokenData(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+class GoogleUser(BaseModel):
+    email: str
+    name: str
+    picture: str
