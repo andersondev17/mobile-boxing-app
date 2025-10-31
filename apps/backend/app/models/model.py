@@ -1,14 +1,16 @@
 from sqlalchemy import Column, Integer, String, TIMESTAMP, func, ForeignKey, Boolean, JSON
 from config import Base
+import uuid
 
 class User(Base):
     __tablename__ = "user"
 
-    id = Column(String, primary_key=True)
-    email = Column(String)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = Column(String, unique=True, nullable=False)
     name = Column(String)
     role = Column(String, ForeignKey("role.id"))
-    email_verified = Column(Boolean)
+    email_verified = Column(Boolean, default=False),
+    #picture = Column(String, nullable=True),
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
 class Role(Base):
