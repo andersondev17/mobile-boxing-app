@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, TIMESTAMP, func, ForeignKey, Boolean, JSON
 from config import Base
 import uuid
+from sqlalchemy.orm import relationship
 
 class User(Base):
     __tablename__ = "user"
@@ -8,16 +9,17 @@ class User(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String, unique=True, nullable=False)
     name = Column(String)
-    role = Column(String, ForeignKey("role.id"))
-    email_verified = Column(Boolean, default=False),
-    #picture = Column(String, nullable=True),
+    role = Column(String, ForeignKey("role.id"))  # relación directa
+    role_rel = relationship("Role", back_populates="users")
+    email_verified = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
 class Role(Base):
     __tablename__ = "role"
 
-    id = Column(String, primary_key=True)
-    description = Column(String)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String)
+    users = relationship("User", back_populates="role_rel")
 
 class Training(Base):
     __tablename__ = "training"

@@ -3,10 +3,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from config import get_db
-from models import User
-from auth import create_access_token, create_refresh_token, verify_token, get_current_user, role_required
-from schemas import Token, GoogleUser
-from schemas import settings
+from models import User, Role
+from auth import create_access_token, create_refresh_token, verify_token, get_current_user, role_required, get_google_user_info
+from schemas import Token, GoogleUser, settings
 import httpx
 from urllib.parse import urlencode
 from typing import Annotated
@@ -16,7 +15,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 db_dependency = Annotated[Session, Depends(get_db)]
 
 @router.post("/login", response_model=Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: db_dependency):
+def login(db: db_dependency, form_data: OAuth2PasswordRequestForm = Depends()):
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or form_data.password != "demo":  # Reemplaza con hash real
         raise HTTPException(status_code=400, detail="Invalid credentials")
@@ -48,7 +47,7 @@ def login_with_google():
     }
     return RedirectResponse(f"{settings.GOOGLE_AUTH_ENDPOINT}?{urlencode(query_params)}")
 
-@router.get("/auth/callback")
+@router.get("/callback")
 async def google_callback(request: Request, db: db_dependency):
     code = request.query_params.get("code")
     if not code:
@@ -58,12 +57,13 @@ async def google_callback(request: Request, db: db_dependency):
     google_user = GoogleUser(**user_info)
 
     # Buscar o crear usuario
+    user_role = db.query(Role).filter_by(id="user").first()
     user_db = db.query(User).filter(User.email == google_user.email).first()
     if not user_db:
-        user = User(
+        user_db  = User(
             email=google_user.email,
             name=google_user.name,
-            role="user",  # Puedes personalizar esto
+            role=user_role.id,  # Puedes personalizar esto
             email_verified=True,
         )
         db.add(user_db)
@@ -78,7 +78,7 @@ async def google_callback(request: Request, db: db_dependency):
     access = create_access_token(payload)
     refresh = create_refresh_token(payload)
 
-    return Token(access_token=access, refresh_token=refresh)
+    return RedirectResponse(f"{settings.FRONTEND_URL}/oauth-callback?access_token={access}&refresh_token={refresh}")
 
 @router.get("/protected", dependencies=[Depends(role_required(["admin"]))])
 def protected(current_user=Depends(get_current_user)):

@@ -1,8 +1,8 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    SECRET_KEY: str
-    ALGORITHM: str
+    JWT_SECRET: str
+    JWT_ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     REFRESH_TOKEN_EXPIRE_DAYS: int
     GOOGLE_CLIENT_ID: str
@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     GOOGLE_AUTH_ENDPOINT: str
     GOOGLE_TOKEN_ENDPOINT: str
     GOOGLE_USERINFO_ENDPOINT: str
+    FRONTEND_URL: str
 
     class Config:
         env_file = ".env"
