@@ -1,7 +1,7 @@
 import { icons } from '@/constants/icons';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import {
     Animated,
@@ -169,6 +169,9 @@ const getTitleForRoute = (routeName: string): string => {
 };
 
 const _layout = () => {
+    const isAuthenticated = true;
+    if(!isAuthenticated) return <Redirect href="/sign-in" />
+
     return (
         <Tabs
             tabBar={(props) => <CurvedTabBar {...props} />}
