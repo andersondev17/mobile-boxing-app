@@ -1,0 +1,8 @@
+# Testing dependencies for backend
+pytest==8.0.0
+pytest-asyncio==0.23.3
+pytest-cov==4.1.0
+httpx==0.26.0
+fastapi[all]==0.109.0
+sqlalchemy==2.0.25
+python-dotenv==1.0.0
