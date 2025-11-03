@@ -10,20 +10,38 @@ export default function AuthLayout() {
         if(isAuthenticated) return <Redirect href="/" />
      */
     return (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            <ScrollView className="bg-gymshock-dark-900 h-full" keyboardShouldPersistTaps="handled">
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            className="flex-1"
+        >
+            <ScrollView
+                className="bg-gymshock-dark-900"
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ flexGrow: 1 }}
+                showsVerticalScrollIndicator={false}
+            >
                 <Image
                     source={images.bg}
-                    className="absolute w-full h-full opacity-25 bg-backgroundImage-premiumGradient"
+                    className="absolute w-full h-full opacity-25"
                     resizeMode="cover"
                 />
 
-                <View className="w-full relative" style={{ height: Dimensions.get('screen').height / 2.25 }}>
-                    <ImageBackground source={images.gloves} className="size-full rounded-b-lg" resizeMode="stretch" />
-                    <Image source={icons.logo} className="self-center size-48 absolute -bottom-16 z-10 rounded-full" />
-                </View> 
-                <Slot />
+                <View className="w-full relative items-center" style={{ height: Dimensions.get('screen').height * 0.30 }}              >
+                    <ImageBackground source={images.gloves} className="absolute w-full h-full rounded-b-2xl opacity-90" resizeMode="cover" />
+
+                    <View className="absolute -bottom-20 z-20">
+                        <Image
+                            source={icons.logo}
+                            className="size-40 rounded-full shadow-2xl shadow-black/80"
+                            resizeMode="contain"
+                        />
+                    </View>
+                </View>
+
+                <View className="pt-24">
+                    <Slot />
+                </View>
             </ScrollView>
         </KeyboardAvoidingView>
-    )
+    );
 }

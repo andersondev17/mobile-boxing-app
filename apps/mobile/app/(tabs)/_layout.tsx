@@ -169,7 +169,7 @@ const getTitleForRoute = (routeName: string): string => {
 };
 
 const _layout = () => {
-    const isAuthenticated = true;
+    const isAuthenticated = true; //TODO: replace with actual auth logic
     if(!isAuthenticated) return <Redirect href="/sign-in" />
 
     return (

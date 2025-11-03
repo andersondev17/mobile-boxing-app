@@ -3,7 +3,7 @@ import CustomButton from "@/components/CustomButton";
 import CustomInput from "@/components/CustomInput";
 import { Link, router } from "expo-router";
 import { useState } from "react";
-import { Alert, Text, View } from 'react-native';
+import { Alert, Text, TouchableOpacity, View } from 'react-native';
 
 const SignUp = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -25,40 +25,60 @@ const SignUp = () => {
     }
 
     return (
-        <View className="gap-10 bg-gymshock-dark-800/95 border border-white/5 rounded-3xl p-6 mt-5 mx-5">
-            <CustomInput
-                placeholder="Ingrese su nombre completo"
-                value={form.name}
-                onChangeText={(text) => setForm((prev) => ({ ...prev, name: text }))}
-                label="Nombre completo"
-            />
-            <CustomInput
-                placeholder="Ingrese su email"
-                value={form.email}
-                onChangeText={(text) => setForm((prev) => ({ ...prev, email: text }))}
-                label="Email"
-                keyboardType="email-address"
-            />
-            <CustomInput
-                placeholder="Ingrese su contraseña"
-                value={form.password}
-                onChangeText={(text) => setForm((prev) => ({ ...prev, password: text }))}
-                label="Contraseña"
-                secureTextEntry={true}
-            />
+        <View className="px-6 pt-8 pb-12">
+            <View className="mb-8">
+
+                <Text className="text-white text-4xl font-oswaldbold text-center mb-2">
+                    Crea tu cuenta
+                </Text>
+                <Text className="text-white/60 text-xs font-spacemono  tracking-wider mb-2 text-center">
+                    BIENVENIDO A GYMSHOCK
+                </Text>
+            </View>
+
+
+            {/* Form */}
+            <View className="gap-4 mb-6">
+                <CustomInput
+                    placeholder="Ingrese su nombre completo"
+                    value={form.name}
+                    onChangeText={(text) => setForm((prev) => ({ ...prev, name: text }))}
+                    label="Nombre completo"
+                />
+                <CustomInput
+                    placeholder="Ingrese su email"
+                    value={form.email}
+                    onChangeText={(text) => setForm((prev) => ({ ...prev, email: text }))}
+                    label="Email"
+                    keyboardType="email-address"
+                />
+                <CustomInput
+                    placeholder="Ingrese su contraseña"
+                    value={form.password}
+                    onChangeText={(text) => setForm((prev) => ({ ...prev, password: text }))}
+                    label="Contraseña"
+                    secureTextEntry
+                />
+            </View>
 
             <CustomButton
-                title="Regístrate"
+                title="Crear cuenta"
                 isLoading={isSubmitting}
                 onPress={submit}
+                variant="primary"
+
             />
 
             <View className="flex justify-center mt-5 flex-row gap-2">
                 <Text className="text-white/80 font-spacemono text-sm">
                     ¿Ya tienes una cuenta?
                 </Text>
-                <Link href="/sign-in" className="text-primary-400 font-oswaldmed text-sm">
-                    Iniciar Sesión
+                <Link href="/sign-in" asChild>
+                    <TouchableOpacity>
+                        <Text className="text-primary-400 text-base font-rubik-medium">
+                            Iniciar Sesión
+                        </Text>
+                    </TouchableOpacity>
                 </Link>
             </View>
         </View>

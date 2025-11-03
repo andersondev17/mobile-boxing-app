@@ -1,3 +1,4 @@
+import CustomButton from "@/components/CustomButton";
 import { icons } from "@/constants/icons";
 import { images } from "@/constants/images";
 import { useRouter } from "expo-router";
@@ -29,16 +30,21 @@ const SettingsItem = ({
 }: SettingsItemProp) => (
     <TouchableOpacity
         onPress={onPress}
-        className="flex flex-row items-center justify-between py-3"
+        className="flex-row items-center justify-between py-2 border-b border-white/5 last:border-0"
+        activeOpacity={0.7}
     >
-        <View className="flex flex-row items-center gap-3">
-            <Image source={icon} className="size-6" />
-            <Text className={`text-base font-spacemono text-white/80 ${textStyle}`}>
+        <View className="flex-row items-center gap-3">
+            <View className="w-10 h-10 bg-white/5 rounded-xl items-center justify-center">
+                <Image source={icon} className="size-4" tintColor="#fff" />
+            </View>
+            <Text className={`text-base font-spacemono ${textStyle || 'text-white/80'}`}>
                 {title}
             </Text>
         </View>
 
-        {showArrow && <Image source={icons.arrow} className="size-5" tintColor="#fff" />}
+        {showArrow && (
+            <Image source={icons.back}    style={{ transform: [{ rotate: '180deg' }] }} className="size-3 opacity-40" tintColor="#fff" />
+        )}
     </TouchableOpacity>
 );
 
@@ -49,65 +55,81 @@ const Profile = () => {
     const handleBack = useCallback(() => router.back(), [router]);
 
     return (
-        <SafeAreaView className="h-full bg-gymshock-dark-900">
+        <SafeAreaView className="flex-1 bg-gymshock-dark-900">
             <Image
                 source={images.bg}
-                className="absolute w-full h-full opacity-25 bg-backgroundImage-premiumGradient"
+                className="absolute w-full h-full opacity-25"
                 resizeMode="cover"
             />
 
             <ScrollView
                 showsVerticalScrollIndicator={false}
-                contentContainerClassName="pb-32 px-7"
+                contentContainerStyle={{ paddingBottom: 120 }}
+                className="px-6"
             >
-                <View className="flex flex-row items-center justify-between mt-5">
+                <View className="flex-row items-center justify-between mt-6 mb-8">
                     <TouchableOpacity
                         onPress={handleBack}
-                        className="w-10 h-10 rounded-full  backdrop-blur-md items-center justify-center"
+                        className="w-11 h-11  items-center justify-center"
                         activeOpacity={0.7}
                     >
-                        <Image source={icons.back} style={{ width: 20, height: 20 }} tintColor="#fff" />
+                        <Image source={icons.back} className="size-5" tintColor="#fff" />
                     </TouchableOpacity>
-                    <Image source={icons.bell} className="size-6" tintColor="#fff" />
+                    
+                    <TouchableOpacity
+                        className="w-11 h-11  items-center justify-center"
+                        activeOpacity={0.7}
+                    >
+                        <Image source={icons.bell} className="size-5" tintColor="#fff" />
+                    </TouchableOpacity>
                 </View>
 
-                <View className="flex flex-row justify-center mt-5">
-                    <View className="flex flex-col items-center relative mt-5">
+                {/* Profile Section */}
+                <View className="items-center mb-8">
+                    <View className="relative">
                         <Image
                             source={images.avatar}
-                            className="size-44 relative rounded-full"
+                            className="size-32 rounded-full border-4 border-white/10"
                         />
-                        <TouchableOpacity className="absolute bottom-11 right-2">
-                            <Image source={icons.edit} className="size-9" />
+                        <TouchableOpacity 
+                            className="absolute -bottom-2 -right-2 w-10 h-10 bg-primary-400 rounded-full items-center justify-center shadow-lg shadow-black/50"
+                            activeOpacity={0.8}
+                        >
+                            <Image source={icons.edit} className="size-5" tintColor="#1a1a1a" />
                         </TouchableOpacity>
-
-                        <Text className="text-2xl font-oswaldbold text-white mt-2">John Doe</Text>
-                        <Text className="text-xs font-spacemono text-white/60 uppercase tracking-widest mt-1">
-                            Miembro Premium
-                        </Text>
                     </View>
+
+                    <Text className="text-3xl font-oswaldbold text-white mt-4">
+                        John Doe
+                    </Text>
+                    <Text className="text-xs font-spacemono text-white/50 uppercase tracking-widest mt-1">
+                        Miembro Premium
+                    </Text>
                 </View>
 
-                <View className="flex flex-col mt-10 bg-gymshock-dark-800/95  rounded-3xl p-5 border border-white/5">
+                <Text className="text-white/50 text-sm font-spacemono uppercase tracking-widest mb-2 pl-4">
+                    Actividad
+                </Text>
+                <View className="bg-gymshock-dark-800/95 rounded-2xl p-2 border border-white/5 mb-4 shadow-lg shadow-black/50">
                     <SettingsItem icon={icons.play} title="Mis Entrenamientos" />
                     <SettingsItem icon={icons.search} title="Guardados" />
                 </View>
 
-                <View className="flex flex-col mt-5 bg-gymshock-dark-800/95  rounded-3xl p-5 border border-white/5 shadow-lg shadow-black">
+                <Text className="text-white/50 text-sm font-spacemono uppercase tracking-widest mb-2 pl-4">
+                    Ajustes
+                </Text>
+                <View className="bg-gymshock-dark-800/95 rounded-2xl p-2 border border-white/5 mb-4 shadow-lg shadow-black/50">
                     <SettingsItem icon={icons.bell} title="Notificaciones" />
                     <SettingsItem icon={icons.person} title="Privacidad" />
-                    <SettingsItem icon={icons.search} title="Configuración" />
+                    <SettingsItem icon={icons.search} title="Ajustes" />
                 </View>
 
-                <View className="flex flex-col mt-5 bg-gymshock-dark-800/95  rounded-3xl p-5 border border-white/5">
-                    <SettingsItem
-                        icon={icons.logout}
-                        title="Cerrar Sesión"
-                        textStyle="text-red-500"
-                        showArrow={false}
-                        onPress={handleLogout}
-                    />
-                </View>
+                <CustomButton
+                    title="CERRAR SESIÓN"
+                    onPress={handleLogout}
+                    variant="primary"
+                    leftIcon={<Image source={icons.logout} className="size-5" tintColor="#1a1a1a" />}
+                />
             </ScrollView>
         </SafeAreaView>
     );
