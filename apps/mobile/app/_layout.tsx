@@ -26,19 +26,9 @@ export default function RootLayout() {
     <DatabaseProvider>
       <ActionSheetProvider>
         <>
-        <StatusBar hidden={true} />
+          <StatusBar hidden={false} />
 
-        <Stack >
-          {/* hidding header */}
-          <Stack.Screen
-            name="(tabs)"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="exercises/[id]"
-            options={{ headerShown: false }}
-          />
-        </Stack>
+          <Stack screenOptions={{ headerShown: false }} />
         </>
       </ActionSheetProvider>
     </DatabaseProvider>
