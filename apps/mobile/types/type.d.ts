@@ -7,8 +7,10 @@ interface CustomButtonProps {
     title?: string;
     style?: string;
     leftIcon?: React.ReactNode;
+    rightIcon?: React.ReactNode;
     textStyle?: string;
     isLoading?: boolean;
+    variant?: "default" | "primary";
 }
 
 interface CustomInputProps {

@@ -1,3 +1,4 @@
+import CustomButton from "@/components/CustomButton";
 import { icons } from "@/constants/icons";
 import { images } from "@/constants/images";
 import { fetchExerciseById } from "@/services/exerciseService";
@@ -167,15 +168,12 @@ const ExerciseDetails = () => {
               <StatsCard label="Equipo" value={equipmentDisplay} size="sm" />
             </View>
 
-            <TouchableOpacity
+            <CustomButton
+              title="Aprender Técnica con IA"
+              rightIcon={<Image source={icons.play} style={{ width: 20, height: 20 }} tintColor="#fff" />}
               onPress={handleAITechnique}
-              className="bg-[#C29B2E] shadow-zinc-300 py-4 my-5 rounded-full w-full items-center justify-center flex-row"
-            >
-              <Image source={icons.play} style={{ width: 20, height: 20 }} tintColor="#fff" />
-              <Text className="text-white text-lg font-spacemono ml-3 uppercase tracking-wide">
-                Aprender Técnica con IA
-              </Text>
-            </TouchableOpacity>
+              variant="primary"
+            />
           </View>
         </View>
 
