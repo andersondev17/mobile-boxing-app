@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, TIMESTAMP, func, ForeignKey, Boolean, JSON
+from sqlalchemy import Column, Integer, String, DateTime, TIMESTAMP, func, ForeignKey, Boolean, JSON
 from config import Base
 import uuid
 from sqlalchemy.orm import relationship
+from datetime import datetime, timedelta
 
 class User(Base):
     __tablename__ = "user"
@@ -62,3 +63,9 @@ class Difficulty(Base):
 
     id = Column(String, primary_key = True)
     description = Column(String)
+    
+class AuthCode(Base):
+    __tablename__ = "auth_codes"
+    code = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_email = Column(String, nullable=False)
+    expires_at = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(minutes=2))

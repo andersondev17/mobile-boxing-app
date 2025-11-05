@@ -4,7 +4,7 @@ from config import engine, Base, seed_roles, get_db
 from routes import user_router, training_router, auth_router
 from auth import google_router
 
-Base.metadata.drop_all(bind=engine)  # elimina todas las tablas
+#Base.metadata.drop_all(bind=engine)  # elimina todas las tablas
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -21,18 +21,14 @@ app.add_middleware(
     allow_methods=["*"]
 )
 
-
 @app.on_event("startup")
 def on_startup():
     db = next(get_db())
     seed_roles(db)
 
-
-
 @app.get("/")
 async def root():
     return {"message":"Welcome to fastAPI"}
-
 
 if __name__ == "__main__":
     import uvicorn

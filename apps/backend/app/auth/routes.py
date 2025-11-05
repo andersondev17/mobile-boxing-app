@@ -1,51 +1,45 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from config import get_db
-from models import User, Role
-from auth import create_access_token, create_refresh_token, verify_token, get_current_user, role_required, get_google_user_info
+from models import User, Role, AuthCode
 from schemas import Token, GoogleUser, settings
-import httpx
-from urllib.parse import urlencode
+from auth import get_current_user, login_user, refresh_user_token, get_or_create_google_user, create_auth_code, get_google_user_info, create_token
 from typing import Annotated
+from datetime import datetime
+from urllib.parse import urlencode
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 db_dependency = Annotated[Session, Depends(get_db)]
 
+# ----- Local Login -----
 @router.post("/login", response_model=Token)
 def login(db: db_dependency, form_data: OAuth2PasswordRequestForm = Depends()):
-    user = db.query(User).filter(User.email == form_data.username).first()
-    if not user or form_data.password != "demo":  # Reemplaza con hash real
-        raise HTTPException(status_code=400, detail="Invalid credentials")
-
-    access = create_access_token({"sub": user.id, "role": user.role})
-    refresh = create_refresh_token({"sub": user.id, "role": user.role})
-    return Token(access_token=access, refresh_token=refresh)
+    tokens = login_user(db, form_data.username, form_data.password)
+    if not tokens:
+        raise HTTPException(400, "Invalid credentials")
+    return tokens
 
 @router.post("/refresh", response_model=Token)
-def refresh_token(refresh_token: str) -> Token:
-    payload = verify_token(refresh_token)
-    if not payload or payload.get("type") != "refresh":
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
+def refresh_endpoint(refresh_token: str = Body(..., embed=True)):
+    payload = refresh_user_token({"sub": "dummy", "role": "user"})  # Aquí usarías verify_token para payload real
+    return payload
 
-    new_access = create_access_token({"sub": payload["sub"], "role": payload.get("role")})
-    
-    new_refresh = create_refresh_token({"sub": payload["sub"], "role": payload.get("role")})
-    return Token(access_token=new_access, refresh_token=new_refresh)
-
+# ----- Google OAuth -----
 @router.get("/login/google")
 def login_with_google():
-    query_params = {
+    params = {
         "client_id": settings.GOOGLE_CLIENT_ID,
         "redirect_uri": settings.GOOGLE_REDIRECT_URI,
         "response_type": "code",
         "scope": "openid email profile",
         "access_type": "offline",
         "prompt": "consent",
+        "include_granted_scopes": "true"
     }
-    return RedirectResponse(f"{settings.GOOGLE_AUTH_ENDPOINT}?{urlencode(query_params)}")
+    return RedirectResponse(f"{settings.GOOGLE_AUTH_ENDPOINT}?{urlencode(params)}")
 
 @router.get("/callback")
 async def google_callback(request: Request, db: db_dependency):
@@ -56,30 +50,40 @@ async def google_callback(request: Request, db: db_dependency):
     user_info = await get_google_user_info(code)
     google_user = GoogleUser(**user_info)
 
-    # Buscar o crear usuario
-    user_role = db.query(Role).filter_by(id="user").first()
-    user_db = db.query(User).filter(User.email == google_user.email).first()
-    if not user_db:
-        user_db  = User(
-            email=google_user.email,
-            name=google_user.name,
-            role=user_role.id,  # Puedes personalizar esto
-            email_verified=True,
-        )
-        db.add(user_db)
-        db.commit()
-        db.refresh(user_db)
+    user = get_or_create_google_user(db, google_user)
+    auth_code = create_auth_code(db, user)
 
-    payload = {
-        "sub": user_db.email, 
-        "name": user_db.name, 
-        "role": "user"
-    }
-    access = create_access_token(payload)
-    refresh = create_refresh_token(payload)
+    return RedirectResponse(f"{settings.FRONTEND_URL}/oauth-callback?auth_code={auth_code}")
 
-    return RedirectResponse(f"{settings.FRONTEND_URL}/oauth-callback?access_token={access}&refresh_token={refresh}")
+# ----- Exchange code -----
+@router.post("/exchange-token")
+def exchange_token(db: db_dependency, auth_code: str = Body(..., embed=True)):
+    # Buscar el código
+    record = db.query(AuthCode).filter_by(code=auth_code).first()
+    if not record or record.expires_at < datetime.utcnow():
+        if record:
+            db.delete(record)
+            db.commit()
+        raise HTTPException(400, "Invalid or expired auth code")
 
-@router.get("/protected", dependencies=[Depends(role_required(["admin"]))])
+    # Buscar usuario
+    user = db.query(User).filter_by(email=record.user_email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Generar tokens JWT
+    payload = {"sub": user.email, "name": user.name, "role": "user"}
+    access = create_token(payload)
+    refresh = create_token(payload, "refresh")
+
+    # Eliminar el auth_code (una sola vez)
+    db.delete(record)
+    db.commit()
+
+    # Retornar tokens
+    return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}
+
+# ----- Protected route -----
+@router.get("/protected")
 def protected(current_user=Depends(get_current_user)):
-    return {"message": f"Welcome {current_user['sub']}! You have admin access."}
+    return {"message": f"Welcome {current_user['sub']}!"}

@@ -9,9 +9,9 @@ db_dependency = Annotated[Session, Depends(get_db)]
 
 def seed_roles(db: db_dependency):
     base_roles = [
-        {"id": "admin", "name": "Administrador"},
-        {"id": "trainer", "name": "Entrenador"},
-        {"id": "user", "name": "Usuario estándar"},
+        {"id": "1", "name": "admin"},
+        {"id": "2", "name": "trainer"},
+        {"id": "3", "name": "user"},
     ]
 
     try:
