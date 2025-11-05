@@ -13,6 +13,7 @@ class User(Base):
     role = Column(String, ForeignKey("role.id"))  # relación directa
     role_rel = relationship("Role", back_populates="users")
     email_verified = Column(Boolean, default=False)
+    hashed_password = Column(String, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
 class Role(Base):

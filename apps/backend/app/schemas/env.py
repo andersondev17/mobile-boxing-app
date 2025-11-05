@@ -12,8 +12,14 @@ class Settings(BaseSettings):
     GOOGLE_TOKEN_ENDPOINT: str
     GOOGLE_USERINFO_ENDPOINT: str
     FRONTEND_URL: str
+    POSTGRES_DRIVER: str
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
+    POSTGRES_HOST: str
+    POSTGRES_PORT: int
+    POSTGRES_DB: str
 
     class Config:
-        env_file = ".env"
+        env_file = "../.env"
 
 settings = Settings()

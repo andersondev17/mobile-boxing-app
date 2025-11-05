@@ -2,10 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
+import logging
+from sqlalchemy.exc import SQLAlchemyError
 from config import get_db
 from models import User, Role, AuthCode
-from schemas import Token, GoogleUser, settings
-from auth import get_current_user, login_user, refresh_user_token, get_or_create_google_user, create_auth_code, get_google_user_info, create_token
+from schemas import Token, GoogleUser, settings, UserCreate, UserBase
+from auth import get_current_user, get_google_user_info, create_token, verify_token
+from .services.auth_service import login_user, refresh_user_token, register_user
+from .services.google_service import get_or_create_google_user, create_auth_code  
 from typing import Annotated
 from datetime import datetime
 from urllib.parse import urlencode
@@ -24,8 +28,16 @@ def login(db: db_dependency, form_data: OAuth2PasswordRequestForm = Depends()):
 
 @router.post("/refresh", response_model=Token)
 def refresh_endpoint(refresh_token: str = Body(..., embed=True)):
-    payload = refresh_user_token({"sub": "dummy", "role": "user"})  # Aquí usarías verify_token para payload real
-    return payload
+    payload = verify_token(refresh_token, token_type="refresh")
+    return refresh_user_token(payload)
+
+@router.post("/register", response_model=UserBase)
+def register(db: db_dependency, user: UserCreate):
+    new_user = register_user(db, user)
+    if not new_user:
+        raise HTTPException(400, "Email already registered")
+
+    return new_user
 
 # ----- Google OAuth -----
 @router.get("/login/google")
@@ -58,32 +70,43 @@ async def google_callback(request: Request, db: db_dependency):
 # ----- Exchange code -----
 @router.post("/exchange-token")
 def exchange_token(db: db_dependency, auth_code: str = Body(..., embed=True)):
-    # Buscar el código
+    # Buscar el auth_code
     record = db.query(AuthCode).filter_by(code=auth_code).first()
+
+    # Si no existe o expiró
     if not record or record.expires_at < datetime.utcnow():
+        # Borrado seguro solo si existe
         if record:
-            db.delete(record)
-            db.commit()
+            try:
+                db.delete(record)
+                db.commit()
+            except Exception:
+                db.rollback()
+        # Retornar mensaje idempotente
         raise HTTPException(400, "Invalid or expired auth code")
 
     # Buscar usuario
     user = db.query(User).filter_by(email=record.user_email).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(404, "User not found")
 
     # Generar tokens JWT
     payload = {"sub": user.email, "name": user.name, "role": "user"}
     access = create_token(payload)
     refresh = create_token(payload, "refresh")
 
-    # Eliminar el auth_code (una sola vez)
-    db.delete(record)
-    db.commit()
+    # Eliminar auth_code de manera segura
+    try:
+        db.delete(record)
+        db.commit()
+    except Exception:
+        db.rollback()
 
     # Retornar tokens
     return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}
 
+
 # ----- Protected route -----
 @router.get("/protected")
 def protected(current_user=Depends(get_current_user)):
-    return {"message": f"Welcome {current_user['sub']}!"}
+    return {"message": f"Welcome {current_user['name']}!"}

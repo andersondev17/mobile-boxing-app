@@ -12,6 +12,11 @@ class UserBase(BaseModel):
     class Config:
         from_attributes  = True
 
+class UserCreate(BaseModel):
+    email: str
+    name: str
+    password: str
+
 class TrainingBase(BaseModel):
     id: str
     user_id: str
@@ -54,4 +59,3 @@ class LoginRequest(BaseModel):
 class GoogleUser(BaseModel):
     email: str
     name: str
-    picture: str

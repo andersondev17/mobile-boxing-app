@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from schemas import settings
 from passlib.context import CryptContext
+from fastapi import HTTPException
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -21,8 +22,12 @@ def create_token(data: dict, type="access"):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
-def verify_token(token: str):
+def verify_token(token: str, token_type="access"):
     try:
-        return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        if token_type == "refresh" and payload.get("type") != "refresh":
+            raise JWTError("Invalid token type")
+        return payload
     except JWTError:
-        return None
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
