@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres
-    container_name: postgres_app
+    container_name: postgres
     env_file:
       - .env
     environment:
@@ -11,12 +11,58 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - postgres_fastapi_data:/var/lib/postgresql/data
+      - postgres_fastapi_data:/var/lib/postgresql
     networks:
       - fastapi_network
 
+  backend:
+    build: ./app
+    container_name: fastapi-app
+    ports:
+      - 8000:8000
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    networks:
+      - fastapi_network
+    volumes:
+      - ./app:/app
+
+  frontend:
+    build: ./frontend
+    container_name: react-app
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - fastapi_network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules    
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    env_file:
+      - .env
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${POSTGRES_USER}@${POSTGRES_USER}.com
+      PGADMIN_DEFAULT_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - 5050:80
+    depends_on:
+      - postgres
+    networks:
+      - fastapi_network
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+
 volumes:
   postgres_fastapi_data:
+  pgadmin_data:
 
 networks:
   fastapi_network:

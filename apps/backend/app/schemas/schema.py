@@ -12,6 +12,11 @@ class UserBase(BaseModel):
     class Config:
         from_attributes  = True
 
+class UserCreate(BaseModel):
+    email: str
+    name: str
+    password: str
+
 class TrainingBase(BaseModel):
     id: str
     user_id: str
@@ -37,3 +42,20 @@ class ExerciseBase(BaseModel):
 
     class Config:
         from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+class TokenData(BaseModel):
+    sub: str
+    role: str | None = None
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class GoogleUser(BaseModel):
+    email: str
+    name: str

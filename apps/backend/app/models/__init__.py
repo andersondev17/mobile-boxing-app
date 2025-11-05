@@ -1,1 +1,1 @@
-from .model import User, Training, Exercise
+from .model import User, Training, Exercise, Role, AuthCode

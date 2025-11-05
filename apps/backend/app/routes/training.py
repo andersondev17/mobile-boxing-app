@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy.exec import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from config import get_db
 from models import Training
 from schemas import TrainingBase
