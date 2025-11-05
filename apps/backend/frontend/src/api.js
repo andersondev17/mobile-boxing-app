@@ -1,8 +1,11 @@
 // src/api.js
 import axios from "axios";
 
+// ✅ Vite usa import.meta.env en lugar de process.env
+const API_URL = import.meta.env.VITE_API_URL;
+
 const api = axios.create({
-  baseURL: "http://localhost:8000",
+  baseURL: API_URL
 });
 
 api.interceptors.request.use((config) => {
@@ -20,7 +23,8 @@ api.interceptors.response.use(
       const refresh = localStorage.getItem("refresh_token");
       if (refresh) {
         try {
-          const res = await axios.post("http://localhost:8000/auth/refresh", { refresh_token: refresh });
+          const refreshUrl = `${API_URL}/auth/refresh`;
+          const res = await axios.post(refreshUrl, { refresh_token: refresh });
           localStorage.setItem("access_token", res.data.access_token);
           return api(originalRequest);
         } catch (err) {
@@ -33,5 +37,6 @@ api.interceptors.response.use(
 );
 
 export default api;
+
 
 

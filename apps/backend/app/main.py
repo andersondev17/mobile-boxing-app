@@ -12,12 +12,18 @@ app.include_router(user_router)
 app.include_router(training_router)
 app.include_router(auth_router)
 
+origins = [
+    "http://localhost:5173", 
+    "http://host.docker.internal:5173"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_headers=["*"],
-    allow_methods=["*"]
+    allow_methods=["*"],
+    expose_headers=["*"]
 )
 
 @app.on_event("startup")
@@ -31,4 +37,4 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="localhost", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

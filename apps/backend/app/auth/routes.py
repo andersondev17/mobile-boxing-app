@@ -109,4 +109,13 @@ def exchange_token(db: db_dependency, auth_code: str = Body(..., embed=True)):
 # ----- Protected route -----
 @router.get("/protected")
 def protected(current_user=Depends(get_current_user)):
-    return {"message": f"Welcome {current_user['name']}!"}
+    return {"message": f"Welcome {current_user.get('email', 'User')}"}
+
+"""@router.get("/protected")
+def protected(db: db_dependency, current_user=Depends(get_current_user)):
+    user_id = current_user["sub"]
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    
+    return {"message": f"Welcome {user.name or user.email}!"}"""
