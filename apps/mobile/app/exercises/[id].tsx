@@ -1,5 +1,4 @@
 import { icons } from "@/constants/icons";
-import { images } from "@/constants/images";
 import { fetchExerciseById } from "@/services/exerciseService";
 import useFetch from "@/services/usefetch";
 import { useActionSheet } from "@expo/react-native-action-sheet";
@@ -93,7 +92,7 @@ const ExerciseDetails = () => {
     );
   }
 
-  if (error || !exercise) {
+  if (error || !exercise || !exercise) {
     return (
       <SafeAreaView className="bg-gymshock-dark-900 flex-1 justify-center items-center px-6">
         <Text className="text-white font-oswaldbold text-xl mb-4 text-center">
@@ -167,60 +166,19 @@ const ExerciseDetails = () => {
               <StatsCard label="Equipo" value={equipmentDisplay} size="sm" />
             </View>
 
-            <TouchableOpacity
-              onPress={handleAITechnique}
-              className="bg-[#C29B2E] shadow-zinc-300 py-4 my-5 rounded-full w-full items-center justify-center flex-row"
-            >
-              <Image source={icons.play} style={{ width: 20, height: 20 }} tintColor="#fff" />
-              <Text className="text-white text-lg font-spacemono ml-3 uppercase tracking-wide">
-                Aprender Técnica con IA
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Content Section  */}
-        <View className=" px-5 pb-20">
-          <Image
-            source={images.bg}
-            className="absolute w-full h-full opacity-25 bg-backgroundImage-premiumGradient"
-          />
-          <View className="rounded-3xl overflow-hidden mb-5 -mt-12" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 16, elevation: 12 }}>
-            {/* Background Image */}
-            <View style={{ height: 200 }} className="relative">
-              <Image
-                source={{ uri: exercise.posterpath }}
-                style={{ width: '100%', height: '100%' }}
-                contentFit="cover"
-                autoplay={false}
-              />
-              <LinearGradient
-                colors={['transparent', 'rgba(17,17,17,0.8)', '#111111']}
-                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-              />
-            </View>
-
-            {/* Card Content */}
-            <View className="bg-gymshock-dark-800/95  px-6 pb-6">
-              <Text className="text-white font-oswaldbold text-2xl mb-2 -mt-2">
-                Sobre este ejercicio
-              </Text>
-              <Text className="text-white/60 font-spacemono text-xs mb-4">
-                {categoryDisplay} · {exercise.difficulty}
-              </Text>
-              <Text className="text-white/80 font-spacemono text-sm leading-6 mb-5">
-                {exercise.description || "Descripción no disponible"}
-              </Text>
-
-              {/* Muscles Tags */}
-              {exercise.muscles?.length > 0 && (
-                <View className="flex-row flex-wrap gap-2">
-                  {exercise.muscles.map((muscle, index) => (
+            {/* Target Muscles */}
+            {exercise?.muscles && exercise.muscles.length > 0 && (
+              <View className="mb-10">
+                <Text className="text-white font-oswaldbold text-xl mb-6">
+                  MÚSCULOS OBJETIVO
+                </Text>
+                <View className="flex-row flex-wrap gap-3">
+                  {exercise?.muscles.map((muscle, index) => (
                     <MuscleTag key={`${muscle}-${index}`} muscle={muscle} />
                   ))}
                 </View>
-              )}
-            </View>
+              </View>
+            )}
           </View>
 
           {/* Technique Card */}
