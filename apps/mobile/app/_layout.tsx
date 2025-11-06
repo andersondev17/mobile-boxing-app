@@ -4,8 +4,11 @@ import { useFonts } from "expo-font";
 import { SplashScreen, Stack } from "expo-router";
 import { useEffect } from "react";
 import { StatusBar } from "react-native";
+import { useAuthStore } from "@/store/authStore";
 import './globals.css';
 export default function RootLayout() {
+  const initialize = useAuthStore((state) => state.initialize);
+
   const [fontLoaded] = useFonts({
     "space-mono": require("../assets/fonts/SpaceMono-Regular.ttf"),
     "OswaldBold": require("../assets/fonts/Oswald-Bold.ttf"),
@@ -14,6 +17,12 @@ export default function RootLayout() {
     "OswaldLight": require("../assets/fonts/Oswald-Light.ttf"),
     "OswaldExtraLight": require("../assets/fonts/Oswald-ExtraLight.ttf")
   })
+
+  // Initialize auth store on app start
+  useEffect(() => {
+    initialize();
+  }, []);
+
   useEffect(() => {
     if (fontLoaded) {
       SplashScreen.hideAsync();

@@ -2,29 +2,45 @@
 import CustomButton from "@/components/CustomButton";
 import CustomInput from "@/components/CustomInput";
 import { icons } from "@/constants/icons";
+import { useAuthStore } from '@/store/authStore';
 import { Link, router } from "expo-router";
 import { useState } from "react";
 import { Alert, Image, Text, TouchableOpacity, View } from 'react-native';
 
 const SignIn = () => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [form, setForm] = useState({ email: '', password: '' });
+    const { signIn, signInWithGoogle, isLoading, error, clearError } = useAuthStore();
+    const [form, setForm] = useState({ email: '', password: '' });
     const [showManualForm, setShowManualForm] = useState(false);
 
-  const submit = async () => {
-    const { email, password } = form;
-    if (!email || !password) return Alert.alert('Error', 'Por favor, ingrese un email y una contraseña válida.');
-    setIsSubmitting(true)
-    try {
-      //TODO: Call FastAPI Sign-In function
-      Alert.alert('Success', 'Iniciaste sesión con éxito');
-      router.replace('/');
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
-    } finally {
-      setIsSubmitting(false);
+    const handleGoogleSignIn = async () => {
+        clearError();
+        try {
+            await signInWithGoogle();
+            Alert.alert('Éxito', 'Iniciaste sesión con Google');
+            router.replace('/');
+        } catch (error: any) {
+            const errorMessage = error?.detail || error?.message || 'Error al iniciar sesión con Google';
+            Alert.alert('Error', errorMessage);
+        }
+    };
+
+    const handleEmailSignIn = async () => {
+        const { email, password } = form;
+
+        if (!email || !password) {
+            return Alert.alert('Error', 'Por favor, ingrese un email y una contraseña válida.');
+        }
+
+        clearError();
+        try {
+            await signIn({ email, password });
+            Alert.alert('Éxito', 'Iniciaste sesión con éxito');
+            router.replace('/');
+        } catch (error: any) {
+            const errorMessage = error?.detail || error?.message || 'Error al iniciar sesión';
+            Alert.alert('Error', errorMessage);
+        }
     }
-  }
 
     return (
         <View className="px-6 pt-8 pb-12">
@@ -40,7 +56,8 @@ const SignIn = () => {
 
             {/* Google Sign-In */}
             <TouchableOpacity
-                onPress={submit}
+                onPress={handleGoogleSignIn}
+                disabled={isLoading}
                 className="bg-white rounded-2xl py-4 mb-6 shadow-lg shadow-black/50"
                 activeOpacity={0.7}
             >
@@ -51,7 +68,7 @@ const SignIn = () => {
                         resizeMode="contain"
                     />
                     <Text className="text-black font-spacemono font-medium text-base tracking-wide ml-3">
-                        Continuar con Google
+                        {isLoading ? 'Iniciando sesión...' : 'Continuar con Google'}
                     </Text>
                 </View>
             </TouchableOpacity>
@@ -86,8 +103,8 @@ const SignIn = () => {
 
             <CustomButton
                 title={showManualForm ? "Iniciar Sesión" : "Continuar con Email"}
-                isLoading={isSubmitting}
-                onPress={showManualForm ? submit : () => setShowManualForm(true)}
+                isLoading={isLoading}
+                onPress={showManualForm ? handleEmailSignIn : () => setShowManualForm(true)}
                 variant="primary"
             />
 
