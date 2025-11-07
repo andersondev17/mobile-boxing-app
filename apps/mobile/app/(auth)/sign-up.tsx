@@ -1,26 +1,33 @@
 // sign-up.tsx
 import CustomButton from "@/components/CustomButton";
 import CustomInput from "@/components/CustomInput";
+import { useAuthStore } from '@/store/authStore';
 import { Link, router } from "expo-router";
 import { useState } from "react";
 import { Alert, Text, TouchableOpacity, View } from 'react-native';
 
 const SignUp = () => {
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { signUp, isLoading, clearError } = useAuthStore();
     const [form, setForm] = useState({ name: '', email: '', password: '' });
 
-    const submit = async () => {
+    const handleSignUp = async () => {
         const { name, email, password } = form;
-        if (!name || !email || !password) return Alert.alert('Error', 'Por favor, complete todos los campos requeridos.');
-        setIsSubmitting(true)
+
+        if (!name || !email || !password) {
+            return Alert.alert('Error', 'Por favor, complete todos los campos requeridos.');
+        }
+
+        clearError();
         try {
-            //TODO: Call FastAPI Sign-In function
-            Alert.alert('Success', 'Cuenta creada con éxito');
-            router.replace('/');
+            await signUp({ name, email, password });
+            Alert.alert(
+                'Cuenta creada',
+                'Tu cuenta ha sido creada exitosamente. Ahora puedes iniciar sesión.',
+                [{ text: 'Iniciar Sesión', onPress: () => router.push('/sign-in') }]
+            );
         } catch (error: any) {
-            Alert.alert('Error', error.message);
-        } finally {
-            setIsSubmitting(false);
+            const errorMessage = error?.detail || error?.message || 'Error al crear cuenta';
+            Alert.alert('Error', errorMessage);
         }
     }
 
@@ -63,8 +70,8 @@ const SignUp = () => {
 
             <CustomButton
                 title="Crear cuenta"
-                isLoading={isSubmitting}
-                onPress={submit}
+                isLoading={isLoading}
+                onPress={handleSignUp}
                 variant="primary"
 
             />

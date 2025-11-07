@@ -3,6 +3,7 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Redirect, Tabs } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
+import { useAuthStore } from '@/store/authStore';
 import {
     Animated,
     Dimensions,
@@ -169,8 +170,8 @@ const getTitleForRoute = (routeName: string): string => {
 };
 
 const _layout = () => {
-    const isAuthenticated = true; //TODO: replace with actual auth logic
-    if(!isAuthenticated) return <Redirect href="/sign-in" />
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    if (!isAuthenticated) return <Redirect href="/sign-in" />
 
     return (
         <Tabs
