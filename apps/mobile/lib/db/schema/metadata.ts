@@ -1,3 +1,6 @@
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { sql } from 'drizzle-orm';
+
 export const appMetadata = sqliteTable('app_metadata', {
     id: text('id').primaryKey().$defaultFn(() => 'app_config'),
     database_version: integer('database_version').notNull().default(1),
