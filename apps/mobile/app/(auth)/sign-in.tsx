@@ -16,8 +16,7 @@ const SignIn = () => {
         clearError();
         try {
             await signInWithGoogle();
-            Alert.alert('Éxito', 'Iniciaste sesión con Google');
-            router.replace('/');
+            router.replace('/(tabs)');
         } catch (error: any) {
             const errorMessage = error?.detail || error?.message || 'Error al iniciar sesión con Google';
             Alert.alert('Error', errorMessage);
@@ -34,8 +33,7 @@ const SignIn = () => {
         clearError();
         try {
             await signIn({ email, password });
-            Alert.alert('Éxito', 'Iniciaste sesión con éxito');
-            router.replace('/');
+            router.replace('/(tabs)');
         } catch (error: any) {
             const errorMessage = error?.detail || error?.message || 'Error al iniciar sesión';
             Alert.alert('Error', errorMessage);
@@ -92,12 +90,6 @@ const SignIn = () => {
                             secureTextEntry={true}
                         />
                     </View>
-
-                    <TouchableOpacity className="mb-6">
-                        <Text className="text-primary-400 text-sm font-rubik-medium text-right">
-                            ¿Olvidaste tu contraseña?
-                        </Text>
-                    </TouchableOpacity>
                 </>
             )}
 

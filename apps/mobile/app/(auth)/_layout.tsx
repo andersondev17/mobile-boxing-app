@@ -25,7 +25,7 @@ export default function AuthLayout() {
                     resizeMode="cover"
                 />
 
-                <View className="w-full relative items-center" style={{ height: Dimensions.get('screen').height * 0.30 }}              >
+                <View className="w-full relative items-center" style={{ height: Dimensions.get('screen').height * 0.30 }}>
                     <ImageBackground source={images.gloves} className="absolute w-full h-full rounded-b-2xl opacity-90" resizeMode="cover" />
 
                     <View className="absolute -bottom-20 z-20">
