@@ -8,10 +8,15 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
     GOOGLE_REDIRECT_URI: str
+    # Google OAuth - iOS Client
+    GOOGLE_IOS_CLIENT_ID: str
+    GOOGLE_IOS_REDIRECT_URI: str
     GOOGLE_AUTH_ENDPOINT: str
     GOOGLE_TOKEN_ENDPOINT: str
     GOOGLE_USERINFO_ENDPOINT: str
+    # Application URLs
     FRONTEND_URL: str
+    MOBILE_DEEP_LINK_SCHEME: str
     POSTGRES_DRIVER: str
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
