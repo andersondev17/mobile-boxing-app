@@ -1,9 +1,11 @@
 import CustomButton from "@/components/CustomButton";
 import { icons } from "@/constants/icons";
 import { images } from "@/constants/images";
+import { useAuthStore, useUser } from "@/store/authStore";
 import { useRouter } from "expo-router";
 import { useCallback } from "react";
 import {
+    Alert,
     Image,
     ImageSourcePropType,
     SafeAreaView,
@@ -49,10 +51,36 @@ const SettingsItem = ({
 );
 
 const Profile = () => {
-    const handleLogout = async () => { };
+    const user = useUser();
+    const { signOut, isLoading } = useAuthStore();
     const router = useRouter();
 
     const handleBack = useCallback(() => router.back(), [router]);
+
+    const handleLogout = async () => {
+        Alert.alert(
+            'Cerrar Sesión',
+            '¿Estás seguro que deseas cerrar sesión?',
+            [
+                {
+                    text: 'Cancelar',
+                    style: 'cancel',
+                },
+                {
+                    text: 'Cerrar Sesión',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await signOut();
+                            router.replace('/sign-in');
+                        } catch (error: any) {
+                            Alert.alert('Error', 'No se pudo cerrar sesión');
+                        }
+                    },
+                },
+            ]
+        );
+    };
 
     return (
         <SafeAreaView className="flex-1 bg-gymshock-dark-900">
@@ -75,7 +103,7 @@ const Profile = () => {
                     >
                         <Image source={icons.back} className="size-5" tintColor="#fff" />
                     </TouchableOpacity>
-                    
+
                     <TouchableOpacity
                         className="w-11 h-11  items-center justify-center"
                         activeOpacity={0.7}
@@ -87,11 +115,18 @@ const Profile = () => {
                 {/* Profile Section */}
                 <View className="items-center mb-8">
                     <View className="relative">
-                        <Image
-                            source={images.avatar}
-                            className="size-32 rounded-full border-4 border-white/10"
-                        />
-                        <TouchableOpacity 
+                        {user?.picture ? (
+                            <Image
+                                source={{ uri: user.picture }}
+                                className="size-32 rounded-full border-4 border-white/10"
+                            />
+                        ) : (
+                            <Image
+                                source={images.avatar}
+                                className="size-32 rounded-full border-4 border-white/10"
+                            />
+                        )}
+                        <TouchableOpacity
                             className="absolute -bottom-2 -right-2 w-10 h-10 bg-primary-400 rounded-full items-center justify-center shadow-lg shadow-black/50"
                             activeOpacity={0.8}
                         >
@@ -100,11 +135,18 @@ const Profile = () => {
                     </View>
 
                     <Text className="text-3xl font-oswaldbold text-white mt-4">
-                        John Doe
+                        {user?.name || 'Usuario'}
                     </Text>
                     <Text className="text-xs font-spacemono text-white/50 uppercase tracking-widest mt-1">
-                        Miembro Premium
+                        {user?.email || 'No autenticado'}
                     </Text>
+                    {user?.provider && (
+                        <View className="flex-row items-center mt-2 bg-white/10 px-3 py-1 rounded-full">
+                            <Text className="text-xs font-spacemono text-primary-400 uppercase tracking-wider">
+                                {user.provider === 'google' ? '🔗 Google' : '📧 Email'}
+                            </Text>
+                        </View>
+                    )}
                 </View>
 
                 <Text className="text-white/50 text-sm font-spacemono uppercase tracking-widest mb-2 pl-4">
@@ -128,6 +170,7 @@ const Profile = () => {
                     title="CERRAR SESIÓN"
                     onPress={handleLogout}
                     variant="primary"
+                    isLoading={isLoading}
                     leftIcon={<Image source={icons.logout} className="size-5" tintColor="#1a1a1a" />}
                 />
             </ScrollView>

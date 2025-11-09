@@ -5,6 +5,7 @@ import close from "@/assets/icons/close.png";
 import edit from "@/assets/icons/edit.png";
 import google from "@/assets/icons/google.png";
 import home from "@/assets/icons/home.png";
+import info from "@/assets/icons/info.png";
 import logo from "@/assets/icons/logo.png";
 import logout from "@/assets/icons/logout.png";
 import person from "@/assets/icons/person.png";
@@ -29,5 +30,6 @@ export const icons = {
   back,
   edit,
   logout,
-  google
+  google,
+  info
 };

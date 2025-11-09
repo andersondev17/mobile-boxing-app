@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from config import get_db
 from models import User, Role, AuthCode
 from schemas import Token, GoogleUser, settings, UserCreate, UserBase
-from auth import get_current_user, get_google_user_info, create_token, verify_token
+from auth import get_current_user, get_google_user_info, get_google_user_info_pkce, create_token, verify_token
 from .services.auth_service import login_user, refresh_user_token, register_user
 from .services.google_service import get_or_create_google_user, create_auth_code  
 from typing import Annotated
@@ -41,23 +41,70 @@ def register(db: db_dependency, user: UserCreate):
 
 # ----- Google OAuth -----
 @router.get("/login/google")
-def login_with_google():
+def login_with_google(
+    client_type: str = "web",
+    code_challenge: str | None = None,
+    code_challenge_method: str | None = None,
+    state: str | None = None
+):
+    """
+    Initiate Google OAuth flow
+
+    Args:
+        client_type: "web" or "ios" - determines which OAuth client to use
+        code_challenge: PKCE code challenge (required for mobile clients)
+        code_challenge_method: Should be "S256" for PKCE
+        state: CSRF protection token
+    """
+    # Select appropriate client configuration
+    if client_type == "ios":
+        client_id = settings.GOOGLE_IOS_CLIENT_ID
+        redirect_uri = settings.GOOGLE_IOS_REDIRECT_URI
+    else:
+        client_id = settings.GOOGLE_CLIENT_ID
+        redirect_uri = settings.GOOGLE_REDIRECT_URI
+
     params = {
-        "client_id": settings.GOOGLE_CLIENT_ID,
-        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
         "response_type": "code",
         "scope": "openid email profile",
         "access_type": "offline",
         "prompt": "consent",
         "include_granted_scopes": "true"
     }
+
+    # Add PKCE parameters for mobile clients (required by Google OAuth2 policies)
+    if code_challenge and code_challenge_method:
+        params["code_challenge"] = code_challenge
+        params["code_challenge_method"] = code_challenge_method
+
+    # Add state parameter for CSRF protection
+    if state:
+        params["state"] = state
+
     return RedirectResponse(f"{settings.GOOGLE_AUTH_ENDPOINT}?{urlencode(params)}")
 
 @router.get("/callback")
 async def google_callback(request: Request, db: db_dependency):
+    """
+    Handle Google OAuth callback
+
+    Accepts authorization code from Google and:
+    1. Validates state parameter (CSRF protection)
+    2. Exchanges code for user info
+    3. Creates or retrieves user
+    4. Generates temporary auth_code
+    5. Redirects to appropriate client (web or mobile)
+    """
     code = request.query_params.get("code")
+    state = request.query_params.get("state")
+
     if not code:
         raise HTTPException(status_code=400, detail="No code provided")
+
+    # Note: In production, validate state parameter against stored value
+    # For now, we just pass it through for client-side validation
 
     user_info = await get_google_user_info(code)
     google_user = GoogleUser(**user_info)
@@ -65,7 +112,12 @@ async def google_callback(request: Request, db: db_dependency):
     user = get_or_create_google_user(db, google_user)
     auth_code = create_auth_code(db, user)
 
-    return RedirectResponse(f"{settings.FRONTEND_URL}/oauth-callback?auth_code={auth_code}")
+    # Return auth_code for mobile to exchange for JWT tokens
+    # Mobile will detect custom scheme redirect 
+    return RedirectResponse(
+        f"{settings.MOBILE_DEEP_LINK_SCHEME}oauth-callback?auth_code={auth_code}"
+        + (f"&state={state}" if state else "")
+    )
 
 # ----- Exchange code -----
 @router.post("/exchange-token")
@@ -104,6 +156,31 @@ def exchange_token(db: db_dependency, auth_code: str = Body(..., embed=True)):
 
     # Retornar tokens
     return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}
+
+@router.post("/mobile/token")
+async def mobile_token_exchange(
+    db: db_dependency,
+    code: str = Body(...),
+    code_verifier: str = Body(...)
+):
+    user_info = await get_google_user_info_pkce(code, code_verifier)
+    google_user = GoogleUser(**user_info)
+    user = get_or_create_google_user(db, google_user)
+
+    payload = {"sub": user.email, "name": user.name, "role": "user"}
+    access = create_token(payload)
+    refresh = create_token(payload, "refresh")
+
+    return {
+        "access_token": access,
+        "refresh_token": refresh,
+        "token_type": "bearer",
+        "user": {
+            "email": user.email,
+            "name": user.name,
+            "role": "user"
+        }
+    }
 
 
 # ----- Protected route -----

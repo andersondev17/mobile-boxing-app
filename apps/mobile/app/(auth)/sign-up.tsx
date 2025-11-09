@@ -1,26 +1,30 @@
 // sign-up.tsx
 import CustomButton from "@/components/CustomButton";
 import CustomInput from "@/components/CustomInput";
+import { useAuthStore } from '@/store/authStore';
 import { Link, router } from "expo-router";
 import { useState } from "react";
 import { Alert, Text, TouchableOpacity, View } from 'react-native';
 
 const SignUp = () => {
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { signUp, isLoading, clearError } = useAuthStore();
     const [form, setForm] = useState({ name: '', email: '', password: '' });
+    const [termsAccepted, setTermsAccepted] = useState(false);
 
-    const submit = async () => {
-        const { name, email, password } = form;
-        if (!name || !email || !password) return Alert.alert('Error', 'Por favor, complete todos los campos requeridos.');
-        setIsSubmitting(true)
+    const isFormValid = form.name.trim() && form.email.trim() && form.password.trim() && termsAccepted;
+
+    const handleSignUp = async () => {
+        clearError();
         try {
-            //TODO: Call FastAPI Sign-In function
-            Alert.alert('Success', 'Cuenta creada con éxito');
-            router.replace('/');
+            await signUp({ name: form.name, email: form.email, password: form.password });
+            Alert.alert(
+                'Cuenta creada',
+                'Tu cuenta ha sido creada exitosamente. Ahora puedes iniciar sesión.',
+                [{ text: 'Iniciar Sesión', onPress: () => router.push('/sign-in') }]
+            );
         } catch (error: any) {
-            Alert.alert('Error', error.message);
-        } finally {
-            setIsSubmitting(false);
+            const errorMessage = error?.detail || error?.message || 'Error al crear cuenta';
+            Alert.alert('Error', errorMessage);
         }
     }
 
@@ -61,12 +65,43 @@ const SignUp = () => {
                 />
             </View>
 
+            {/* Terms Checkbox */}
+            <View className="flex-row items-start gap-3 mb-6">
+                <TouchableOpacity
+                    onPress={() => setTermsAccepted(!termsAccepted)}
+                    className={`w-5 h-5 mt-1 rounded border-2 items-center justify-center ${
+                        termsAccepted ? 'bg-primary-400 border-primary-400' : 'border-white/40'
+                    }`}
+                >
+                    {termsAccepted && <Text className="text-gymshock-dark-900 text-xs font-bold">✓</Text>}
+                </TouchableOpacity>
+
+                <View className="flex-1">
+                    <Text className="text-white/80 text-xs font-spacemono leading-5">
+                        Acepto los{' '}
+                        <Text
+                            onPress={() => router.push('/(auth)/terms')}
+                            className="text-primary-400 underline"
+                        >
+                            Términos y Condiciones
+                        </Text>
+                        {' '}y la{' '}
+                        <Text
+                            onPress={() => router.push('/(auth)/privacy')}
+                            className="text-primary-400 underline"
+                        >
+                            Política de Privacidad
+                        </Text>
+                    </Text>
+                </View>
+            </View>
+
             <CustomButton
                 title="Crear cuenta"
-                isLoading={isSubmitting}
-                onPress={submit}
+                isLoading={isLoading}
+                disabled={!isFormValid}
+                onPress={handleSignUp}
                 variant="primary"
-
             />
 
             <View className="flex justify-center mt-5 flex-row gap-2">

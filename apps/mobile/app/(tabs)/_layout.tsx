@@ -1,4 +1,5 @@
 import { icons } from '@/constants/icons';
+import { useAuthStore } from '@/store/authStore';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Redirect, Tabs } from 'expo-router';
@@ -169,8 +170,8 @@ const getTitleForRoute = (routeName: string): string => {
 };
 
 const _layout = () => {
-    const isAuthenticated = true; //TODO: replace with actual auth logic
-    if(!isAuthenticated) return <Redirect href="/sign-in" />
+        const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    if (!isAuthenticated) return <Redirect href="/sign-in" />
 
     return (
         <Tabs

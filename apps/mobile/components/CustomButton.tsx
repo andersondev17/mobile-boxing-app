@@ -18,20 +18,22 @@ const CustomButton = ({
     leftIcon,
     rightIcon,
     isLoading = false,
+    disabled = false,
     variant = "default"
 }: CustomButtonProps) => {
     const isPrimary = variant === "primary";
-    
+    const isDisabled = isLoading || disabled;
+
     const buttonContent = (
         <>
             {leftIcon && <View className="mr-2">{leftIcon}</View>}
             {isLoading ? (
-                <ActivityIndicator 
-                    size="small" 
-                    color={LOADER_COLORS[variant]} 
+                <ActivityIndicator
+                    size="small"
+                    color={LOADER_COLORS[variant]}
                 />
             ) : (
-                <Text 
+                <Text
                     className={cn(
                         'font-spacemono font-bold text-base tracking-widest',
                         isPrimary ? 'text-gymshock-dark-900' : 'text-white',
@@ -45,15 +47,15 @@ const CustomButton = ({
         </>
     );
 
-    const opacityStyle: ViewStyle = { opacity: isLoading ? 0.6 : 1 };
+    const opacityStyle: ViewStyle = { opacity: isDisabled ? 0.4 : 1 };
 
     const sharedProps = {
         onPress,
         activeOpacity: 0.85,
-        disabled: isLoading,
+        disabled: isDisabled,
         accessibilityRole: "button" as const,
         accessibilityLabel: title,
-        accessibilityState: { disabled: isLoading, busy: isLoading },
+        accessibilityState: { disabled: isDisabled, busy: isLoading },
     };
 
     if (isPrimary) {

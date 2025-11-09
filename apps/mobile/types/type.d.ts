@@ -10,6 +10,7 @@ interface CustomButtonProps {
     rightIcon?: React.ReactNode;
     textStyle?: string;
     isLoading?: boolean;
+    disabled?: boolean;
     variant?: "default" | "primary";
 }
 
