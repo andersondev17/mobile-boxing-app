@@ -35,6 +35,23 @@ const getApiBaseUrl = (): string => {
          'https://api.yourdomain.com';
 };
 
+// OAuth Configuration
+const getOAuthConfig = () => {
+  const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+
+  const redirectUri = process.env.EXPO_PUBLIC_GOOGLE_REDIRECT_URI;
+
+  if (!clientId || !redirectUri) {
+    throw new Error(
+      'Missing OAuth configuration. Set EXPO_PUBLIC_GOOGLE_CLIENT_ID and EXPO_PUBLIC_GOOGLE_REDIRECT_URI'
+    );
+  }
+
+  return { clientId, redirectUri };
+};
+
+const oauthConfig = getOAuthConfig();
+
 // Environment configuration
 
 export const ENV = {
@@ -42,6 +59,8 @@ export const ENV = {
   IS_DEV: ENV_NAME === 'development',
   APP_VERSION: Constants.expoConfig?.version || '1.0.0',
   PLATFORM: Platform.OS,
+  GOOGLE_CLIENT_ID: oauthConfig.clientId,
+  GOOGLE_REDIRECT_URI: oauthConfig.redirectUri,
 } as const;
 
 export default ENV;

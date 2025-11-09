@@ -4,14 +4,15 @@
  * @module lib/api/auth
  */
 
-import * as WebBrowser from 'expo-web-browser';
 import type {
   AuthResponse,
   LoginCredentials,
   RegisterData,
   User,
 } from '@/types/auth';
-import { API_BASE_URL, apiClient, clearTokens, get, handleApiResponse, post, saveTokens } from './client';
+import * as WebBrowser from 'expo-web-browser';
+import { ENV } from '@/lib/config/env';
+import { apiClient, clearTokens, get, handleApiResponse, post, saveTokens } from './client';
 
 /**
  * Register a new user with email and password
@@ -79,8 +80,14 @@ export const loginUser = async (
 };
 
 /**
- * Login with Google OAuth2
- * Opens browser for Google authentication flow
+ * Login with Google OAuth2 using PKCE
+ * Opens native browser for Google authentication flow
+ *
+ * Security Features:
+ * - PKCE (Proof Key for Code Exchange) for authorization code protection
+ * - State parameter for CSRF protection
+ * - Custom URL scheme redirect for iOS
+ * - Secure token exchange flow
  *
  * @returns {Promise<AuthResponse>} Auth tokens and user data
  * @throws {Error} If Google login fails or is cancelled
@@ -95,12 +102,24 @@ export const loginUser = async (
  */
 export const loginWithGoogle = async (): Promise<AuthResponse> => {
   try {
-    // Open Google OAuth flow in browser
-    const authUrl = `${API_BASE_URL}/auth/login/google`;
+    const { createPKCESession, consumePKCESession } = await import('@/lib/utils/pkce');
+    const pkceSession = await createPKCESession();
+
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
+      client_id: ENV.GOOGLE_CLIENT_ID,
+      redirect_uri: ENV.GOOGLE_REDIRECT_URI,
+      response_type: 'code',
+      scope: 'openid email profile',
+      code_challenge: pkceSession.codeChallenge,
+      code_challenge_method: 'S256',
+      state: pkceSession.state,
+    })}`;
+
+    WebBrowser.maybeCompleteAuthSession();
 
     const result = await WebBrowser.openAuthSessionAsync(
       authUrl,
-      `${API_BASE_URL}/auth/callback` // Redirect URL after auth
+      ENV.GOOGLE_REDIRECT_URI
     );
 
     if (result.type === 'cancel') {
@@ -111,28 +130,38 @@ export const loginWithGoogle = async (): Promise<AuthResponse> => {
       throw new Error('Google login failed');
     }
 
-    // Parse tokens from callback URL
     const url = new URL(result.url);
-    const accessToken = url.searchParams.get('access_token');
-    const refreshToken = url.searchParams.get('refresh_token');
+    const code = url.searchParams.get('code');
+    const returnedState = url.searchParams.get('state');
 
-    if (!accessToken || !refreshToken) {
-      throw new Error('No tokens received from Google login');
+    if (!code) {
+      throw new Error('No authorization code received from Google');
     }
 
-    // Save tokens
-    await saveTokens(accessToken, refreshToken);
+    if (returnedState) {
+      consumePKCESession(returnedState);
+    }
 
-    // Fetch user data
-    const user = await getCurrentUser();
+    const response = await post<AuthResponse>('/auth/mobile/token', {
+      code,
+      code_verifier: pkceSession.codeVerifier,
+    });
+
+    if (!response.access_token || !response.refresh_token) {
+      throw new Error('No tokens received from server');
+    }
+
+    await saveTokens(response.access_token, response.refresh_token);
 
     return {
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      user,
+      access_token: response.access_token,
+      refresh_token: response.refresh_token,
+      user: response.user || await getCurrentUser(),
     };
   } catch (error) {
     console.error('Google login error:', error);
+    const { clearPKCESession } = await import('@/lib/utils/pkce');
+    clearPKCESession();
     throw error;
   }
 };

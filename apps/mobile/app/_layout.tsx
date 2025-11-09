@@ -1,10 +1,10 @@
 import { DatabaseProvider } from "@/components/DatabaseProvider";
+import { useAuthStore } from "@/store/authStore";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { useFonts } from "expo-font";
 import { SplashScreen, Stack } from "expo-router";
 import { useEffect } from "react";
 import { StatusBar } from "react-native";
-import { useAuthStore } from "@/store/authStore";
 import './globals.css';
 export default function RootLayout() {
   const initialize = useAuthStore((state) => state.initialize);
@@ -37,7 +37,10 @@ export default function RootLayout() {
         <>
         <StatusBar hidden={true} />
 
-          <Stack screenOptions={{ headerShown: false }} />
+        <Stack screenOptions={{ headerShown: false }} initialRouteName="(auth)">
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+        </Stack>
         </>
       </ActionSheetProvider>
     </DatabaseProvider>
