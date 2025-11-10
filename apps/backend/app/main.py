@@ -1,16 +1,22 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from config import engine, Base, seed_roles, get_db
-from routes import user_router, training_router
+from routes import user_router, training_router, video_router, video_ws_router
 from auth import auth_router
+import logging
+from pathlib import Path
 
-Base.metadata.drop_all(bind=engine)  # elimina todas las tablas
+#Base.metadata.drop_all(bind=engine)  # elimina todas las tablas
 Base.metadata.create_all(bind=engine)
+
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
 app.include_router(user_router)
 app.include_router(training_router)
 app.include_router(auth_router)
+app.include_router(video_router)
+app.include_router(video_ws_router)
 
 origins = [
     "http://localhost:5173", 
@@ -25,6 +31,10 @@ app.add_middleware(
     allow_methods=["*"],
     expose_headers=["*"]
 )
+
+#para crear las carpetas si no existen
+Path("videos/temp").mkdir(parents=True, exist_ok=True)
+Path("videos/output").mkdir(parents=True, exist_ok=True)
 
 @app.on_event("startup")
 def on_startup():
