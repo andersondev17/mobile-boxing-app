@@ -32,10 +32,6 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-#para crear las carpetas si no existen
-Path("videos/temp").mkdir(parents=True, exist_ok=True)
-Path("videos/output").mkdir(parents=True, exist_ok=True)
-
 @app.on_event("startup")
 def on_startup():
     db = next(get_db())

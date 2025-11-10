@@ -1,14 +1,14 @@
 // Configuración de la aplicación
+const BASE_URL = import.meta.env.VITE_API_URL;
+
 export const API_CONFIG = {
-  // URLs del backend - CAMBIAR según tu configuración
-  WS_URL: 'ws://localhost:8000/ws/process_frame',
-  API_BASE_URL: 'http://localhost:8000',
-  
-  // Endpoints
-  RESET_COUNTER: '/reset_counter',
-  STATS: '/stats',
-  PROCESS_VIDEO: '/process_video',
-}
+  API_BASE_URL: BASE_URL,
+
+  //endpoints
+  WS_URL: BASE_URL.replace('http', 'ws') + '/video/ws/process_frame',
+  RESET_COUNTER: '/video/reset_counter',
+  PROCESS_VIDEO: '/video/process_video',
+};
 
 // Configuración de video
 export const VIDEO_CONFIG = {

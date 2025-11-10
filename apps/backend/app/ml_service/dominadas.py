@@ -64,17 +64,7 @@ def draw_zone(frame, p1, p2, p3, angle):
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
 def procesar_frame(frame, pose, contador):
-    """
-    Procesa un solo frame y retorna la información de seguimiento
-    
-    Args:
-        frame: Frame de video (numpy array)
-        pose: Instancia de MediaPipe Pose
-        contador: Instancia de ContadorDominadas
-    
-    Returns:
-        dict con count, state, landmarks, y el frame procesado
-    """
+    #Procesa un solo frame y retorna la información de seguimiento
     height, width, _ = frame.shape
     
     # Procesar con MediaPipe
@@ -127,7 +117,7 @@ def procesar_frame(frame, pose, contador):
     return response_data
 
 def procesar_video(input_path, output_path):
-    """Procesa un video completo y genera un video de salida"""
+    #Procesa un video completo y genera un video de salida
     cap = cv2.VideoCapture(input_path)
     
     if not cap.isOpened():

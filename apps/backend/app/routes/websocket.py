@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 @router.websocket("/ws/process_frame")
 async def websocket_endpoint(websocket: WebSocket):
+    #websocket para camara en tiempo real
     await websocket.accept()
     logger.info("Cliente conectado al socket de video")
 
@@ -22,13 +23,34 @@ async def websocket_endpoint(websocket: WebSocket):
             while True:
                 data = await websocket.receive_text()
                 try:
-                    img_data = base64.b64decode(data.split(',')[1] if ',' in data else data)
-                    frame = cv2.imdecode(np.frombuffer(img_data, np.uint8), cv2.IMREAD_COLOR)
+                    # Decodificar imagen
+                    if ',' in data:
+                        img_data = base64.b64decode(data.split(',')[1])
+                    else:
+                        img_data = base64.b64decode(data)
+                    
+                    nparr = np.frombuffer(img_data, np.uint8)
+                    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                    
                     if frame is None:
                         continue
+                    
+                    # Procesar frame
                     resultado = procesar_frame(frame, pose, contador_global)
-                    await websocket.send_json(resultado)
+                    
+                    # Enviar respuesta
+                    response = {
+                        "count": resultado["count"],
+                        "state": resultado["state"],
+                        "landmarks": resultado["landmarks"]
+                    }
+                    
+                    await websocket.send_json(response)
+
                 except Exception as e:
                     logger.error(f"Error procesando frame: {e}")
+                    continue
         except WebSocketDisconnect:
             logger.info("Cliente desconectado")
+        except Exception as e:
+            logger.error(f"Error en WebSocket: {str(e)}")
