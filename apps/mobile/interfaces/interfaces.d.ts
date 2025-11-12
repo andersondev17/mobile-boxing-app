@@ -71,3 +71,25 @@ interface TrendingCardProps {
   exercise: TrendingMovie;
   index: number;
 }
+
+export interface CVPipelineLandmarks {
+  right_shoulder: [number, number];
+  right_elbow: [number, number];
+  right_wrist: [number, number];
+  left_shoulder: [number, number];
+  left_elbow: [number, number];
+  left_wrist: [number, number];
+  angle_r: number;
+  angle_l: number;
+}
+
+export interface CVPipelineResponse {
+  count: number;
+  state: 'Esperando' | 'Sube' | 'Bien hecho' | 'Reinicio';
+  landmarks?: CVPipelineLandmarks;
+}
+
+export interface ProcessVideoResult {
+  videoUri: string;
+  totalPullups: number;
+}
