@@ -1,7 +1,7 @@
-import { db } from '@/lib/db';
 import { exercises } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import uuid from 'react-native-uuid';
+import type { Database } from './provider';
 
 const tecnicasGolpeoData = [
   {
@@ -17,7 +17,7 @@ const tecnicasGolpeoData = [
   },
   {
     title: 'Directo de Derecha',
-    poster_url: 'https://media.giphy.com/media/xUySTxL9fZyjIKzoLS/giphy.gif',
+    poster_url: 'https://selfdefensetutorials.com/wp-content/uploads/2018/08/mayweather-right-cross.gif',
     category: 'tecnicas_golpeo',
     difficulty: 'principiante',
     duration_min: 5,
@@ -28,7 +28,7 @@ const tecnicasGolpeoData = [
   },
   {
     title: 'Gancho Izquierdo',
-    poster_url: 'https://media.giphy.com/media/lmHf50zYQPAYmHvTGR/giphy.gif',
+    poster_url: 'https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExMnk2MXF0Z2U3anU1Y20zZjVhbGQwYTEwcXBmcTN0Z3kxNjFmc3JxeSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/WlypvHG29U3ljsq7AN/giphy.gif',
     category: 'tecnicas_golpeo',
     difficulty: 'intermedio',
     duration_min: 6,
@@ -39,7 +39,7 @@ const tecnicasGolpeoData = [
   },
   {
     title: 'Gancho al Cuerpo',
-    poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
+    poster_url: 'https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExcHl3enk3OG55YWpienFrMXV3NWJhaG1ocGUydjB2NXM3emxtaHJjZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/97080fI6xE9guW3z53/giphy.gif',
     category: 'tecnicas_golpeo',
     difficulty: 'intermedio',
     duration_min: 7,
@@ -50,7 +50,7 @@ const tecnicasGolpeoData = [
   },
   {
     title: 'Uppercut',
-    poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
+    poster_url: 'https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExcDcxaTZ3OXVuemNpb2R5N3lzMXIxdGpzajh5aDV5dzEzYWpjNnNoeiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/BpX6RB6YFcx7q/200.gif',
     category: 'tecnicas_golpeo',
     difficulty: 'intermedio',
     duration_min: 7,
@@ -61,7 +61,7 @@ const tecnicasGolpeoData = [
   },
   {
     title: 'Combinación 1-2',
-    poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
+    poster_url: 'https://i.makeagif.com/media/8-06-2019/lNrZzr.gif',
     category: 'tecnicas_golpeo',
     difficulty: 'principiante',
     duration_min: 8,
@@ -72,7 +72,7 @@ const tecnicasGolpeoData = [
   },
   {
     title: 'Doble Jab',
-    poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
+    poster_url: 'https://c.tenor.com/Us-Qd30obeYAAAAd/tenor.gif',
     category: 'tecnicas_golpeo',
     difficulty: 'intermedio',
     duration_min: 8,
@@ -86,7 +86,7 @@ const tecnicasGolpeoData = [
 const tecnicasDefensaData = [
   {
     title: 'Esquiva Lateral',
-    poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
+    poster_url: 'https://c.tenor.com/7AaIyFnY5QsAAAAC/tenor.gif',
     category: 'defensa',
     difficulty: 'intermedio',
     duration_min: 5,
@@ -97,7 +97,7 @@ const tecnicasDefensaData = [
   },
   {
     title: 'Agachada y Tejido',
-    poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
+    poster_url: 'https://c.tenor.com/_X4bKa-5qScAAAAC/tenor.gif',
     category: 'defensa',
     difficulty: 'intermedio',
     duration_min: 6,
@@ -108,7 +108,7 @@ const tecnicasDefensaData = [
   },
   {
     title: 'Bloqueo con Guantes',
-    poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
+    poster_url: 'https://c.tenor.com/qsk9_cngp7gAAAAC/tenor.gif',
     category: 'defensa',
     difficulty: 'principiante',
     duration_min: 5,
@@ -119,7 +119,7 @@ const tecnicasDefensaData = [
   },
   {
     title: 'Desvío',
-    poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
+    poster_url: 'https://c.tenor.com/Z-yLLhuIXiQAAAAC/tenor.gif',
     category: 'defensa',
     difficulty: 'intermedio',
     duration_min: 5,
@@ -133,7 +133,7 @@ const tecnicasDefensaData = [
 const ejerciciosFuerzaData = [
   {
     title: 'Saltar Cuerda',
-    poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
+    poster_url: 'https://dadbod2boxer.com/wp-content/uploads/2015/08/MuhammadAliXBrianLondon-01b-SkipRope-400-sg.gif',
     category: 'fuerza_acondicionamiento',
     difficulty: 'principiante',
     duration_min: 10,
@@ -144,7 +144,7 @@ const ejerciciosFuerzaData = [
   },
   {
     title: 'Sombra con Pesas',
-    poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
+    poster_url: 'https://gifdb.com/images/high/rocky-training-dumbbell-shadow-boxing-85ywkul88nkvsugf.webp',
     category: 'fuerza_acondicionamiento',
     difficulty: 'intermedio',
     duration_min: 10,
@@ -155,7 +155,7 @@ const ejerciciosFuerzaData = [
   },
   {
     title: 'Plancha con Golpes',
-    poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
+    poster_url: 'https://media-cldnry.s-nbcnews.com/image/upload/t_fit-760w,f_auto,q_auto:best/newscms/2017_40/1286924/bob-harper-punchplank-171003.gif',
     category: 'fuerza_acondicionamiento',
     difficulty: 'avanzado',
     duration_min: 5,
@@ -166,7 +166,7 @@ const ejerciciosFuerzaData = [
   },
   {
     title: 'Giros Rusos',
-    poster_url: 'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
+    poster_url: 'https://www.trainmag.com/wp-content/uploads/2020/02/russian-twists-9.gif',
     category: 'fuerza_acondicionamiento',
     difficulty: 'intermedio',
     duration_min: 7,
@@ -176,12 +176,11 @@ const ejerciciosFuerzaData = [
     equipment: 'Pesa o balón medicinal'
   }
 ];
-
-export const seedExercises = async () => {
+export const seedExercises = async (db: Database) => {
   try {
     const allExercises = [
-      ...tecnicasGolpeoData, 
-      ...tecnicasDefensaData, 
+      ...tecnicasGolpeoData,
+      ...tecnicasDefensaData,
       ...ejerciciosFuerzaData
     ];
 

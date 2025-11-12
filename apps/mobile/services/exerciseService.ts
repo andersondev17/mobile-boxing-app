@@ -1,6 +1,6 @@
 // services/exerciseService.ts
 import { Exercise } from '@/interfaces/interfaces';
-import { db } from '@/lib/db';
+import { db } from '@/lib/db/client';
 import { exercises } from '@/lib/db/schema';
 import { eq, like, or } from 'drizzle-orm';
 

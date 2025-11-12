@@ -4,6 +4,7 @@ export * from './community';
 export * from './enums';
 export * from './exercises';
 export * from './guests';
+export * from './metadata';
 export * from './metrics';
 export * from './reports';
 export * from './sessions';
