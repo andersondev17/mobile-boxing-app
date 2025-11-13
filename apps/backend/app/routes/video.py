@@ -1,8 +1,9 @@
 from fastapi import APIRouter, UploadFile, File
-from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse
 from pathlib import Path
 import shutil
 import logging
+import base64
 from ml_service import procesar_video, ContadorDominadas
 
 router = APIRouter(prefix="/video", tags=["video"])
@@ -26,39 +27,37 @@ async def reset_counter():
 
 @router.post("/process_video")
 async def process_video_endpoint(file: UploadFile = File(...)):
-    #Procesa un video y retorna el video con el contador
-    logger.info(f"Procesando video: {file.filename}")
-    
-    # Rutas
+    """Procesa un video y retorna el video procesado en base64 con metadata"""
     input_path = TEMP_DIR / f"temp_{file.filename}"
     output_path = OUTPUT_DIR / f"processed_{file.filename}"
-    
+
     try:
-        # Guardar archivo
         with open(input_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-        
-        # Procesar video
+
         resultado = procesar_video(str(input_path), str(output_path))
-        
         logger.info(f"Video procesado: {resultado['total_pullups']} dominadas")
-        
-        # Limpiar temporal
-        if input_path.exists():
-            input_path.unlink()
-        
-        # Retornar video
-        return FileResponse(
-            output_path,
-            media_type="video/mp4",
-            filename=f"resultado_{file.filename}"
+
+        input_path.unlink()
+
+        with open(output_path, "rb") as video_file:
+            video_base64 = base64.b64encode(video_file.read()).decode('utf-8')
+
+        output_path.unlink()
+
+        return JSONResponse(
+            content={
+                "video_base64": video_base64,
+                "total_pullups": resultado['total_pullups'],
+                "filename": f"resultado_{file.filename}"
+            },
+            headers={
+                "X-Total-Pullups": str(resultado['total_pullups'])
+            }
         )
-    
+
     except Exception as e:
-        logger.error(f"Error: {str(e)}")
-        # Limpiar en caso de error
-        if input_path.exists():
-            input_path.unlink()
-        if output_path.exists():
-            output_path.unlink()
+        logger.error(f"Error procesando video: {str(e)}")
+        input_path.unlink(missing_ok=True)
+        output_path.unlink(missing_ok=True)
         return {"error": str(e)}
