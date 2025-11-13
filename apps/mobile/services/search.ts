@@ -1,6 +1,6 @@
 //track the searches made by user
 import { Exercise } from "@/interfaces/interfaces";
-import { db } from '@/lib/db';
+import { db } from '@/lib/db/client';
 import { metrics } from '@/lib/db/schema';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import uuid from 'react-native-uuid';

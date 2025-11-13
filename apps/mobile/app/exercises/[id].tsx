@@ -70,9 +70,11 @@ const ExerciseDetails = () => {
   // Memoized handlers
   const handleBack = useCallback(() => router.back(), [router]);
   const handleAITechnique = useCallback(() => {
-    // TODO: Navigate to AI technique 
-    console.log('AI Technique for:', exercise?.title);
-  }, [exercise?.title]);
+    router.push(`/exercises/technique/${id}`);
+  }, [id, router]);
+  const handleRealtimeAnalysis = useCallback(() => {
+    router.push('/exercises/realtime-vision');
+  }, [router]);
 
   // Memoized computations
   const categoryDisplay = useMemo(() =>
@@ -168,12 +170,19 @@ const ExerciseDetails = () => {
               <StatsCard label="Equipo" value={equipmentDisplay} size="sm" />
             </View>
 
-            <CustomButton
-              title="Aprender Técnica con IA"
-              rightIcon={<Image source={icons.play} style={{ width: 20, height: 20 }} tintColor="#fff" />}
-              onPress={handleAITechnique}
-              variant="primary"
-            />
+            <View className="gap-3">
+              <CustomButton
+                title="Análisis en Tiempo Real"
+                rightIcon={<Text className="text-white text-lg">⚡</Text>}
+                onPress={handleRealtimeAnalysis}
+                variant="primary"
+              />
+              <CustomButton
+                title="Analizar Video Grabado"
+                rightIcon={<Image source={icons.play} style={{ width: 20, height: 20 }} tintColor="#fff" />}
+                onPress={handleAITechnique}
+              />
+            </View>
           </View>
         </View>
 

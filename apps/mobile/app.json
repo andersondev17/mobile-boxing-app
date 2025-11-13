@@ -63,8 +63,27 @@
           }
         }
       ],
-      "expo-sqlite"
-      
+      "expo-sqlite",
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "Permite acceso a la cámara para análisis de técnica en tiempo real",
+          "enableMicrophonePermission": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permite acceso a la cámara para grabar videos de ejercicios"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Permite guardar videos de tus entrenamientos",
+          "savePhotosPermission": "Permite guardar videos procesados"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
