@@ -1,34 +1,43 @@
 import { icons } from '@/constants/icons';
-import { uploadVideoForProcessing } from '@/services/cvPipelineService';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useVideoProcessing } from '@/hooks/useVideoProcessing';
 import { ResizeMode, Video } from 'expo-av';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Camera, useCameraDevice, useCameraDevices, useCameraPermission, VideoFile } from 'react-native-vision-camera';
 
 export default function TechniqueCapture() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const cameraRef = useRef<CameraView>(null);
-  const [permission, requestPermission] = useCameraPermissions();
+  const cameraRef = useRef<Camera>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [videoUri, setVideoUri] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [facing, setFacing] = useState<'front' | 'back'>('front');
+  const [cameraReady, setCameraReady] = useState(false);
+
+  const devices = useCameraDevices(); // opcional: para enumerar dispositivos
+  const device = useCameraDevice(facing); // usar 'front' o 'back'
+  const { hasPermission: hasCameraPermission, requestPermission: requestCameraPermission } = useCameraPermission();
+
+  const { isProcessing, progress, error, processVideo, reset } = useVideoProcessing();
 
   useEffect(() => {
-    if (permission === null) {
-      requestPermission();
-    }
-  }, [permission]);
+    (async () => {
+      // Si aún no tiene permiso, solicitarlo
+      if (!hasCameraPermission) {
+        await requestCameraPermission();
+      }
+    })();
+  }, [hasCameraPermission, requestCameraPermission]);
+
 
   const toggleCameraFacing = () => {
     setFacing(current => current === 'front' ? 'back' : 'front');
   };
 
-  if (!permission || !permission.granted) {
+  if (!hasCameraPermission) {
     return (
       <SafeAreaView className="flex-1 bg-gymshock-dark-900 justify-center items-center">
         <ActivityIndicator size="large" color="#C29B2E" />
@@ -40,26 +49,46 @@ export default function TechniqueCapture() {
   }
 
   const handleRecord = async () => {
-    if (!cameraRef.current) return;
+    if (!cameraRef.current || !device) return;
 
-    if (isRecording) {
-      cameraRef.current.stopRecording();
-      setIsRecording(false);
-    } else {
-      setIsRecording(true);
-      const video = await cameraRef.current.recordAsync({ maxDuration: 60 });
-      if (video) {
-        setVideoUri(video.uri);
+    try {
+      if (isRecording) {
+        // detiene la grabación -> llamará a onRecordingFinished
+        await cameraRef.current.stopRecording();
+        setIsRecording(false);
+        return;
       }
+
+      setIsRecording(true);
+
+      cameraRef.current.startRecording({
+        onRecordingFinished: (video: VideoFile) => {
+          // video.path es la ruta local en Android/iOS
+          const path = (video.path ?? (video as any).uri) as string;
+          // asegura formato file://
+          const uri = path.startsWith('file://') ? path : `file://${path}`;
+          setVideoUri(uri);
+          setIsRecording(false);
+        },
+        onRecordingError: (error: any) => {
+          console.error('Recording error:', error);
+          setIsRecording(false);
+          Alert.alert('Error', 'Error al grabar el video. Intenta de nuevo.');
+        },
+      });
+    } catch (err) {
+      console.error(err);
+      setIsRecording(false);
     }
   };
+
 
   const handleProcessVideo = async () => {
     if (!videoUri) return;
 
-    setIsProcessing(true);
-    try {
-      const result = await uploadVideoForProcessing(videoUri);
+    const result = await processVideo(videoUri);
+
+    if (result) {
       router.replace({
         pathname: '/exercises/technique/results',
         params: {
@@ -68,15 +97,15 @@ export default function TechniqueCapture() {
           exerciseId: id,
         },
       });
-    } catch (error) {
-      Alert.alert('Error', 'No se pudo procesar el video. Intenta de nuevo.');
-      setIsProcessing(false);
+    } else {
+      Alert.alert('Error', error || 'No se pudo procesar el video. Intenta de nuevo.');
     }
   };
 
   const handleRetake = () => {
     setVideoUri(null);
     setIsRecording(false);
+    reset();
   };
 
   if (videoUri) {
@@ -105,8 +134,13 @@ export default function TechniqueCapture() {
               <View className="items-center py-6">
                 <ActivityIndicator size="large" color="#C29B2E" />
                 <Text className="text-white/60 font-spacemono text-sm mt-4">
-                  Procesando video...
+                  Procesando video... {progress}%
                 </Text>
+                {error && (
+                  <Text className="text-red-500 font-spacemono text-xs mt-2">
+                    {error}
+                  </Text>
+                )}
               </View>
             ) : (
               <View className="space-y-3">
@@ -137,8 +171,23 @@ export default function TechniqueCapture() {
 
   return (
     <View className="flex-1 bg-black">
-      <CameraView ref={cameraRef} style={{ flex: 1 }} mode="video" facing={facing} />
-
+      {device == null ? (
+        <View style={{ flex: 1, backgroundColor: 'black', justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#C29B2E" />
+          <Text className="text-white/60 font-spacemono text-sm mt-4">Inicializando cámara...</Text>
+        </View>
+      ) : (
+        <Camera
+          ref={cameraRef}
+          style={{ flex: 1 }}
+          device={device}
+          isActive={true}
+          video={true}
+          onInitialized={() => setCameraReady(true)}
+        // videoBitRate="high"
+        // fps={30} 
+        />
+      )}
       <SafeAreaView className="absolute top-0 left-0 right-0 bottom-0" style={{ pointerEvents: 'box-none' }}>
         <View className="absolute top-14 left-5">
           <TouchableOpacity
@@ -169,9 +218,8 @@ export default function TechniqueCapture() {
 
           <TouchableOpacity
             onPress={handleRecord}
-            className={`w-20 h-20 rounded-full border-4 border-white items-center justify-center ${
-              isRecording ? 'bg-red-500' : 'bg-transparent'
-            }`}
+            className={`w-20 h-20 rounded-full border-4 border-white items-center justify-center ${isRecording ? 'bg-red-500' : 'bg-transparent'
+              }`}
             style={{ pointerEvents: 'auto' }}
           >
             <View className={`w-12 h-12 ${isRecording ? 'bg-white' : 'bg-red-500'} rounded-full`} />
