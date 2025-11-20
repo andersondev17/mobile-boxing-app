@@ -6,12 +6,12 @@ from routes import (
     kafka_router,
     training_router,
     user_router,
-    video_router,
-    video_ws_router,
 )
 from auth import auth_router
 import logging
 from pathlib import Path
+
+from ml_service.baseline_builder import ensure_baseline
 
 #Base.metadata.drop_all(bind=engine)  # elimina todas las tablas
 Base.metadata.create_all(bind=engine)
@@ -22,8 +22,6 @@ app = FastAPI()
 app.include_router(user_router)
 app.include_router(training_router)
 app.include_router(auth_router)
-app.include_router(video_router)
-app.include_router(video_ws_router)
 app.include_router(boxing_router)
 app.include_router(kafka_router)
 
@@ -45,6 +43,10 @@ app.add_middleware(
 def on_startup():
     db = next(get_db())
     seed_roles(db)
+    try:
+        ensure_baseline()
+    except Exception as exc:
+        logging.warning("No se pudo generar baseline automaticamente: %s", exc)
 
 @app.get("/")
 async def root():

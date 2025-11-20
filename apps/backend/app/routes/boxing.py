@@ -45,6 +45,7 @@ async def upload_video(
     temp_path = boxing_service.temp_dir / temp_filename
 
     try:
+        temp_path.parent.mkdir(parents=True, exist_ok=True)
         with open(temp_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 

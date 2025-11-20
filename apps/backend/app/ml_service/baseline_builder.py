@@ -49,3 +49,17 @@ def build_baseline(input_folder: Path = DEFAULT_INPUT, output_path: Path = DEFAU
 
 if __name__ == "__main__":
     build_baseline()
+
+
+def ensure_baseline(
+    input_folder: Path = DEFAULT_INPUT,
+    output_path: Path = DEFAULT_OUTPUT,
+):
+    """
+    Garantiza que exista un baseline. Si el archivo ya esta generado,
+    simplemente devuelve la ruta; de lo contrario, lanza build_baseline.
+    """
+    output_path = Path(output_path)
+    if output_path.exists():
+        return output_path
+    return build_baseline(input_folder=input_folder, output_path=output_path)

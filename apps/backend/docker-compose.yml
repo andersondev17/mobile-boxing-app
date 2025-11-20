@@ -100,9 +100,10 @@ services:
       - kafka1
 
   smartwatch_consumer:
-    build: ./app
+    build:
+      context: ./app
+      dockerfile: kakfa/Dockerfile
     container_name: smartwatch-consumer
-    command: python kakfa/smartwatch_consumer.py
     env_file:
       - .env
     depends_on:
