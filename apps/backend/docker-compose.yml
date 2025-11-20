@@ -33,25 +33,16 @@ services:
     networks:
       - fastapi_network
     volumes:
-      - ./app:/app
+      - ./app:/app  
 
-  frontend:
-    build:
-      context: ./frontend
-      args:
-        - VITE_API_URL=${VITE_API_URL}
-    env_file:
-      - .env
-    container_name: react-app
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: redis-server --save "" --appendonly no
     ports:
-      - "5173:5173"
-    depends_on:
-      - backend
+      - "6379:6379"
     networks:
       - fastapi_network
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules    
 
   kafka1:
     image: confluentinc/cp-kafka:latest
@@ -108,6 +99,22 @@ services:
     depends_on:
       - kafka1
 
+  smartwatch_consumer:
+    build: ./app
+    container_name: smartwatch-consumer
+    command: python kakfa/smartwatch_consumer.py
+    env_file:
+      - .env
+    depends_on:
+      kafka1:
+        condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - fastapi_network
+    volumes:
+      - ./app:/app
+
   kafka3:
     image: confluentinc/cp-kafka:latest
     container_name: kafka3
@@ -153,7 +160,6 @@ services:
 
 volumes:
   postgres_fastapi_data:
-  pgadmin_data:
   kafka_data1:
   kafka_data2:
   kafka_data3:

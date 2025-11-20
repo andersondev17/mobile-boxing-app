@@ -2,17 +2,17 @@ import json
 import time
 import random
 from datetime import datetime, timezone
+
 from confluent_kafka import Producer
-from dotenv import load_dotenv
-import os
 
-load_dotenv()
+from schemas import settings
 
-class KafkaProducer():
+
+class KafkaProducer:
     def __init__(self):
-        self.topic = os.getenv("KAFKA_TOPIC")
+        self.topic = settings.KAFKA_TOPIC
         self.conf = {
-            "bootstrap.servers": os.getenv("KAFKA_BROKERS")
+            "bootstrap.servers": settings.KAFKA_BROKERS,
         }
 
     def delivery(self, err, msg):
