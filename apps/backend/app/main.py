@@ -1,7 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from config import engine, Base, seed_roles, get_db
-from routes import user_router, training_router, video_router, video_ws_router
+from routes import boxing_router, user_router, training_router, video_router, video_ws_router
 from auth import auth_router
 import logging
 from pathlib import Path
@@ -17,6 +17,7 @@ app.include_router(training_router)
 app.include_router(auth_router)
 app.include_router(video_router)
 app.include_router(video_ws_router)
+app.include_router(boxing_router)
 
 origins = [
     "http://localhost:5173", 
