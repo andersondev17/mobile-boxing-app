@@ -1,4 +1,5 @@
 // services/exerciseService.ts
+import { LocalVideoKey, localVideos } from '@/constants/videos';
 import { Exercise } from '@/interfaces/interfaces';
 import { db } from '@/lib/db/client';
 import { exercises } from '@/lib/db/schema';
@@ -10,18 +11,30 @@ const CATEGORIES = {
     FUERZA_ACONDICIONAMIENTO: 'fuerza_acondicionamiento'
 } as const;
 
-const mapDbExerciseToExercise = (ex: typeof exercises.$inferSelect): Exercise => ({
-    _id: ex.id,
-    title: ex.title,
-    posterpath: ex.poster_url,
-    category: ex.category,
-    difficulty: ex.difficulty,
-    duration: `${ex.duration_min} min`,
-    description: ex.description,
-    technique: ex.technique,
-    muscles: Array.isArray(ex.muscles) ? ex.muscles : JSON.parse(ex.muscles || '[]'),
-    equipment: ex.equipment || ''
-});
+const mapDbExerciseToExercise = (ex: typeof exercises.$inferSelect): Exercise => {
+    // 🔧 FIX: Resuelve la URI AQUÍ, devuelve string limpia
+    const resolveImageUrl = (posterUrl: string): string => {
+        if (posterUrl.startsWith('http')) {
+            return posterUrl;
+        }
+        
+        const localVideo = localVideos[posterUrl as LocalVideoKey];
+        return typeof localVideo === 'object' ? localVideo.uri : posterUrl;
+    };
+
+    return {
+        _id: ex.id,
+        title: ex.title,
+        posterpath: resolveImageUrl(ex.poster_url), // ✅ Siempre string
+        category: ex.category,
+        difficulty: ex.difficulty,
+        duration: `${ex.duration_min} min`,
+        description: ex.description,
+        technique: ex.technique,
+        muscles: Array.isArray(ex.muscles) ? ex.muscles : JSON.parse(ex.muscles || '[]'),
+        equipment: ex.equipment || ''
+    };
+};
 
 export const fetchExercises = async ({ query }: { query: string }): Promise<Exercise[]> => {
     try {
