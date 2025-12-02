@@ -23,6 +23,15 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str
     POSTGRES_PORT: int
     POSTGRES_DB: str
+    # Kafka configuration
+    KAFKA_TOPIC: str
+    KAFKA_BROKERS: str
+    GROUP_ID: str
+    CLIENT_ID: str
+    SESSION_TIMEOUT: int
+    AUTO_OFFSET_RESET: str
+    REDIS_URL: str
+    SMARTWATCH_BUFFER_SIZE: int = 500
 
     class Config:
         env_file = "../.env"

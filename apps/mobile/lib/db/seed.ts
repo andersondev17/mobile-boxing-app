@@ -6,7 +6,7 @@ import type { Database } from './provider';
 const tecnicasGolpeoData = [
   {
     title: 'Jab',
-    poster_url: 'https://media.giphy.com/media/ovzh1nMQQMOMXE3WVx/giphy.gif',
+    poster_url: 'jab',
     category: 'tecnicas_golpeo',
     difficulty: 'principiante',
     duration_min: 5,
@@ -17,7 +17,7 @@ const tecnicasGolpeoData = [
   },
   {
     title: 'Directo de Derecha',
-    poster_url: 'https://selfdefensetutorials.com/wp-content/uploads/2018/08/mayweather-right-cross.gif',
+    poster_url: 'directoDerecha',
     category: 'tecnicas_golpeo',
     difficulty: 'principiante',
     duration_min: 5,
@@ -28,7 +28,7 @@ const tecnicasGolpeoData = [
   },
   {
     title: 'Gancho Izquierdo',
-    poster_url: 'https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExMnk2MXF0Z2U3anU1Y20zZjVhbGQwYTEwcXBmcTN0Z3kxNjFmc3JxeSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/WlypvHG29U3ljsq7AN/giphy.gif',
+    poster_url: 'ganchoIzquierdo',
     category: 'tecnicas_golpeo',
     difficulty: 'intermedio',
     duration_min: 6,
@@ -39,7 +39,7 @@ const tecnicasGolpeoData = [
   },
   {
     title: 'Gancho al Cuerpo',
-    poster_url: 'https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExcHl3enk3OG55YWpienFrMXV3NWJhaG1ocGUydjB2NXM3emxtaHJjZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/97080fI6xE9guW3z53/giphy.gif',
+    poster_url: 'ganchoCuerpo',
     category: 'tecnicas_golpeo',
     difficulty: 'intermedio',
     duration_min: 7,
@@ -50,7 +50,7 @@ const tecnicasGolpeoData = [
   },
   {
     title: 'Uppercut',
-    poster_url: 'https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExcDcxaTZ3OXVuemNpb2R5N3lzMXIxdGpzajh5aDV5dzEzYWpjNnNoeiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/BpX6RB6YFcx7q/200.gif',
+    poster_url: 'uppercut',
     category: 'tecnicas_golpeo',
     difficulty: 'intermedio',
     duration_min: 7,
@@ -61,7 +61,7 @@ const tecnicasGolpeoData = [
   },
   {
     title: 'Combinación 1-2',
-    poster_url: 'https://i.makeagif.com/media/8-06-2019/lNrZzr.gif',
+    poster_url: 'combinacion',
     category: 'tecnicas_golpeo',
     difficulty: 'principiante',
     duration_min: 8,
@@ -72,7 +72,7 @@ const tecnicasGolpeoData = [
   },
   {
     title: 'Doble Jab',
-    poster_url: 'https://c.tenor.com/Us-Qd30obeYAAAAd/tenor.gif',
+    poster_url: 'dobleJab',
     category: 'tecnicas_golpeo',
     difficulty: 'intermedio',
     duration_min: 8,
@@ -144,7 +144,7 @@ const ejerciciosFuerzaData = [
   },
   {
     title: 'Sombra con Pesas',
-    poster_url: 'https://gifdb.com/images/high/rocky-training-dumbbell-shadow-boxing-85ywkul88nkvsugf.webp',
+    poster_url: 'sombraPesas',
     category: 'fuerza_acondicionamiento',
     difficulty: 'intermedio',
     duration_min: 10,
@@ -166,7 +166,7 @@ const ejerciciosFuerzaData = [
   },
   {
     title: 'Giros Rusos',
-    poster_url: 'https://www.trainmag.com/wp-content/uploads/2020/02/russian-twists-9.gif',
+    poster_url: 'girosRusos',
     category: 'fuerza_acondicionamiento',
     difficulty: 'intermedio',
     duration_min: 7,

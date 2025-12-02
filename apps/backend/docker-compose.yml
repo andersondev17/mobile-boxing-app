@@ -33,30 +33,137 @@ services:
     networks:
       - fastapi_network
     volumes:
-      - ./app:/app
+      - ./app:/app  
 
-  frontend:
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: redis-server --save "" --appendonly no
+    ports:
+      - "6379:6379"
+    networks:
+      - fastapi_network
+
+  kafka1:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka1
+    hostname: kafka1
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka1:29093,2@kafka2:29093,3@kafka3:29093
+      
+      # Define dos tipos de listeners: internos (PLAINTEXT) y externos (EXTERNAL)
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka1:9092,CONTROLLER://kafka1:29093,EXTERNAL://0.0.0.0:19092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:9092,EXTERNAL://localhost:19092
+      
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      # Parámetros de tolerancia mínimos
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+    ports:
+      - "9092:9092"
+      - "19092:19092"
+    volumes:
+      - kafka_data1:/var/lib/kafka/data
+    networks:
+      - fastapi_network
+
+  kafka2:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka2
+    hostname: kafka2
+    environment:
+      KAFKA_NODE_ID: 2
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka1:29093,2@kafka2:29093,3@kafka3:29093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka2:9093,CONTROLLER://kafka2:29093,EXTERNAL://0.0.0.0:19093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9093,EXTERNAL://localhost:19093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "9093:9093"
+      - "19093:19093"
+    volumes:
+      - kafka_data2:/var/lib/kafka/data
+    networks:
+      - fastapi_network
+    depends_on:
+      - kafka1
+
+  smartwatch_consumer:
     build:
-      context: ./frontend
-      args:
-        - VITE_API_URL=${VITE_API_URL}
+      context: ./app
+      dockerfile: kakfa/Dockerfile
+    container_name: smartwatch-consumer
     env_file:
       - .env
-    container_name: react-app
-    ports:
-      - "5173:5173"
     depends_on:
-      - backend
+      kafka1:
+        condition: service_started
+      redis:
+        condition: service_started
     networks:
       - fastapi_network
     volumes:
-      - ./frontend:/app
-      - /app/node_modules    
+      - ./app:/app
+
+  kafka3:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka3
+    hostname: kafka3
+    environment:
+      KAFKA_NODE_ID: 3
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka1:29093,2@kafka2:29093,3@kafka3:29093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka3:9094,CONTROLLER://kafka3:29093,EXTERNAL://0.0.0.0:19094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9094,EXTERNAL://localhost:19094
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "9094:9094"
+      - "19094:19094"
+    volumes:
+      - kafka_data3:/var/lib/kafka/data
+    networks:
+      - fastapi_network
+    depends_on:
+      - kafka1
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop
+    container_name: kafdrop
+    restart: "no"
+    ports:
+      - "9000:9000"
+    environment:
+      # Conecta a los listeners internos dentro de Docker
+      KAFKA_BROKERCONNECT: "kafka1:9092,kafka2:9093,kafka3:9094"
+      SERVER_SERVLET_CONTEXTPATH: "/"
+      JVM_OPTS: "-Xms32M -Xmx64M"
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+    networks:
+      - fastapi_network
 
 
 volumes:
   postgres_fastapi_data:
-  pgadmin_data:
+  kafka_data1:
+  kafka_data2:
+  kafka_data3:
 
 networks:
   fastapi_network:

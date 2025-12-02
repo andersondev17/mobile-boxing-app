@@ -93,8 +93,14 @@ export default function TechniqueCapture() {
         pathname: '/exercises/technique/results',
         params: {
           videoUri: result.videoUri,
-          totalPullups: result.totalPullups,
           exerciseId: id,
+          framesAnalyzed: String(result.framesAnalyzed),
+          baselineUsed: String(result.baselineUsed),
+          sessionId: result.sessionId ?? '',
+          feedbackSummary: JSON.stringify(result.feedbackSummary ?? []),
+          metricsPath: result.metricsPath ?? '',
+          sessionFile: result.sessionFile ?? '',
+          sessionRows: result.sessionRows ? String(result.sessionRows) : '',
         },
       });
     } else {
