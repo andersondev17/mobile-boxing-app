@@ -12,12 +12,19 @@ import { useCallback, useState } from 'react';
  * 4. Recibir video procesado + header X-Total-Pullups
  * 5. Mostrar resultado
  */
+type ProcessVideoOptions = {
+  sessionId?: string;
+};
+
 export function useVideoProcessing() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const processVideo = useCallback(async (videoUri: string): Promise<ProcessVideoResult | null> => {
+  const processVideo = useCallback(async (
+    videoUri: string,
+    options?: ProcessVideoOptions,
+  ): Promise<ProcessVideoResult | null> => {
     setIsProcessing(true);
     setProgress(0);
     setError(null);
@@ -33,7 +40,7 @@ export function useVideoProcessing() {
     }, 500);
 
     try {
-      const result = await uploadVideoForProcessing(videoUri);
+      const result = await uploadVideoForProcessing(videoUri,options?.sessionId);
 
       setProgress(100);
       clearInterval(progressInterval);

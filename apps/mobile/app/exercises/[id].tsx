@@ -171,16 +171,17 @@ const ExerciseDetails = () => {
             </View>
 
             <View className="gap-3">
-              <CustomButton
+             {/*  <CustomButton
                 title="Análisis en Tiempo Real"
                 rightIcon={<Text className="text-white text-lg">⚡</Text>}
                 onPress={handleRealtimeAnalysis}
                 variant="primary"
-              />
+              /> */}
               <CustomButton
                 title="Analizar Video Grabado"
                 rightIcon={<Image source={icons.play} style={{ width: 20, height: 20 }} tintColor="#fff" />}
                 onPress={handleAITechnique}
+                variant="primary"
               />
             </View>
           </View>

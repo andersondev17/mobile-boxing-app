@@ -91,5 +91,22 @@ export interface CVPipelineResponse {
 
 export interface ProcessVideoResult {
   videoUri: string;
-  totalPullups: number;
+  framesAnalyzed: number;
+  baselineUsed: boolean;
+  sessionId?: string;
+  feedbackSummary: string[];
+  metricsPath?: string;
+  sessionFile?: string;
+  sessionRows?: number;
+}
+
+export interface JabRealtimeFramePayload {
+  frame?: string;
+  feedback?: string | null;
+  jab_detected?: boolean;
+  frame_index?: number | null;
+}
+
+export interface JabRealtimeServerMessage extends JabRealtimeFramePayload {
+  error?: string;
 }

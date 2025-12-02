@@ -3,6 +3,7 @@ import logging
 import shutil
 import time
 import uuid
+import base64
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
@@ -33,7 +34,6 @@ async def load_baseline(file: UploadFile = File(...)):
     except Exception as exc:  # pragma: no cover - FastAPI runtime
         logger.exception("Error al cargar baseline: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
-
 
 @router.post("/videos/upload")
 async def upload_video(
@@ -71,12 +71,23 @@ async def upload_video(
         session_record.session_rows = result.session_rows
         db.commit()
 
-        return FileResponse(
-            result.processed_path,
-            media_type="video/mp4",
-            filename=result.processed_filename,
-            headers=result.headers(),
-        )
+        # LEER EL VIDEO PROCESADO Y CONVERTIRLO A BASE64
+        with open(result.processed_path, "rb") as video_file:
+            video_bytes = video_file.read()
+            video_base64 = base64.b64encode(video_bytes).decode('utf-8')
+
+        # Devolver JSON con el video en base64 
+        return {
+            "video_base64": video_base64,
+            "frames_analyzed": result.frame_count,
+            "baseline_used": result.baseline_used,
+            "session_id": result.session_id,
+            "feedback_summary": result.summary_lines,
+            "metrics_path": str(result.metrics_path) if result.metrics_path else None,
+            "session_file": str(result.session_file) if result.session_file else None,
+            "session_rows": result.session_rows,
+        }
+
     except Exception as exc:
         logger.exception("Error al procesar video: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
@@ -101,10 +112,18 @@ async def jab_websocket(websocket: WebSocket):
             else:
                 continue
 
+            action = payload.get("action")
+            if action == "reset":
+                ws_tracker.reset_state()
+                await websocket.send_json({"status": "reset"})
+                continue
+
             frame_b64 = payload.get("frame")
             if not frame_b64:
                 await websocket.send_json({"error": "frame_missing"})
                 continue
+            if isinstance(frame_b64, str) and frame_b64.startswith("data:"):
+                frame_b64 = frame_b64.split(",", 1)[-1]
 
             fps_override = payload.get("fps")
             if fps_override:
