@@ -1,9 +1,9 @@
+import * as schema from '@/lib/db/schema';
 import { cleanOrphanMetrics } from '@/services/search';
 import { drizzle } from 'drizzle-orm/expo-sqlite';
 import { SQLiteProvider } from 'expo-sqlite';
 import React, { ReactNode, Suspense } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
-import * as schema from '@/lib/db/schema';
 
 interface DatabaseProviderProps {
     children: ReactNode;
@@ -55,6 +55,13 @@ async function initializeDatabase(db: any) {
                 created_at integer DEFAULT (strftime('%s','now')) NOT NULL,
                 updated_at integer DEFAULT (strftime('%s','now')) NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS saved_exercises (
+                id text PRIMARY KEY NOT NULL,
+                user_id text NOT NULL,
+                exercise_id text NOT NULL,
+                saved_at integer DEFAULT (strftime('%s','now')) NOT NULL,
+                UNIQUE(user_id, exercise_id)
+            );
         `);
 
         const CURRENT_SEED_VERSION = 2; // Incrementa esto para forzar re-seed
@@ -86,8 +93,8 @@ async function initializeDatabase(db: any) {
 function LoadingFallback() {
     return (
         <View className="flex-1 justify-center items-center bg-gymshock-dark-900">
-            <ActivityIndicator size="large" color="#FF4500" />
-            <Text className="text-light-200 mt-3 text-base">Initializing database...</Text>
+            <ActivityIndicator size="large" color="#C29B2E" />
+            <Text className="text-light-200 mt-3 text-base">Iniciando...</Text>
         </View>
     );
 }

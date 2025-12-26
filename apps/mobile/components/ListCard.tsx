@@ -1,3 +1,4 @@
+import { icons } from '@/constants/icons';
 import { Exercise } from '@/interfaces/interfaces';
 import { useActionSheet } from '@expo/react-native-action-sheet';
 import { Image } from 'expo-image';
@@ -50,11 +51,22 @@ const ListCard = ({ exercise }: { exercise: Exercise }) => {
                 <Link href={`/exercises/${exercise._id}`} asChild>
                     <TouchableOpacity className="flex-row items-center flex-1" activeOpacity={0.85}>
                         <View className="relative">
-                            <Image
+                             {exercise.posterpath ? (
+                                <Image
                                 source={{ uri: exercise.posterpath }}
-                                style={{ width: 80, height: 80, borderRadius: 8 }}
-                                autoplay={false}
-                            />
+                                    style={{ width: 80, height: 80, borderRadius: 8 }}
+                                    contentFit="cover"
+                                    transition={200}
+                                />
+                            ) : (
+                                <View className="w-20 h-20 rounded-lg bg-primary-500/10 items-center justify-center">
+                                    <Image
+                                        source={icons.agregar}
+                                        style={{ width: 24, height: 24 }}
+                                        tintColor="#C29B2E"
+                                    />
+                                </View>
+                            )}
                             <View className="absolute inset-0 bg-black/20 rounded-lg" />
                         </View>
 

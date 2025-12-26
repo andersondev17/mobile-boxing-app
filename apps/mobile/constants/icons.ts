@@ -1,7 +1,9 @@
+import agregar from "@/assets/icons/agregar.png";
 import arrow from "@/assets/icons/arrow.png";
 import back from "@/assets/icons/back.png";
 import bell from "@/assets/icons/bell.png";
 import close from "@/assets/icons/close.png";
+import done from "@/assets/icons/done.png";
 import edit from "@/assets/icons/edit.png";
 import google from "@/assets/icons/google.png";
 import home from "@/assets/icons/home.png";
@@ -31,5 +33,7 @@ export const icons = {
   edit,
   logout,
   google,
-  info
+  info,
+  agregar,
+  done
 };
