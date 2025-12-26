@@ -1,6 +1,7 @@
 import CustomButton from "@/components/CustomButton";
 import { icons } from "@/constants/icons";
 import { images } from "@/constants/images";
+import { useSavedExercises } from "@/hooks/useSavedExercises";
 import { fetchExerciseById } from "@/services/exerciseService";
 import useFetch from "@/services/usefetch";
 import { useActionSheet } from "@expo/react-native-action-sheet";
@@ -42,6 +43,12 @@ const ExerciseDetails = () => {
   const { id } = useLocalSearchParams();
   const { data: exercise, loading, error } = useFetch(() => fetchExerciseById(id as string));
   const { showActionSheetWithOptions } = useActionSheet();
+  const { toggleSave, savedIds } = useSavedExercises();
+
+  const isSaved = useMemo(() => 
+    exercise ? savedIds.has(exercise._id) : false, 
+    [exercise, savedIds]
+  );
 
   const handleShare = useCallback(() => {
     if (!exercise) return;
@@ -67,16 +74,16 @@ const ExerciseDetails = () => {
     });
   }, [exercise, showActionSheetWithOptions]);
 
-  // Memoized handlers
+  const handleSave = useCallback(async () => {
+    if (!exercise) return;
+    await toggleSave(exercise._id, exercise);
+  }, [exercise, toggleSave]);
+
   const handleBack = useCallback(() => router.back(), [router]);
   const handleAITechnique = useCallback(() => {
     router.push(`/exercises/technique/${id}`);
   }, [id, router]);
-  const handleRealtimeAnalysis = useCallback(() => {
-    router.push('/exercises/realtime-vision');
-  }, [router]);
 
-  // Memoized computations
   const categoryDisplay = useMemo(() =>
     exercise?.category?.replace('_', ' ') || 'Sin categoría',
     [exercise?.category]
@@ -140,12 +147,15 @@ const ExerciseDetails = () => {
           <View className="absolute top-14 left-0 right-0 flex-row justify-between items-center px-5">
             <TouchableOpacity
               onPress={handleBack}
-              className="w-10 h-10 rounded-full  backdrop-blur-md items-center justify-center"
+              className="w-10 h-10 rounded-full backdrop-blur-md items-center justify-center"
               activeOpacity={0.7}
             >
               <Image source={icons.back} style={{ width: 20, height: 20 }} tintColor="#fff" />
             </TouchableOpacity>
-
+             <Text className="text-white font-spacemono font-bold text-lg">
+                {exercise.category?.replace('_', ' ') || 'Ejercicio'}
+             </Text>
+            
             <TouchableOpacity
               onPress={handleShare}
               className="w-10 h-10 rounded-full backdrop-blur-md items-center justify-center"
@@ -157,13 +167,30 @@ const ExerciseDetails = () => {
 
           <View className="absolute bottom-0 left-0 right-0 px-6 pb-20">
             <View className="mb-5">
-              <Text className="text-white font-oswaldbold text-4xl mb-2">
-                {exercise.title}
-              </Text>
-              <Text className="text-white/70 font-spacemono text-xs uppercase tracking-widest">
-                {categoryDisplay}
-              </Text>
+              <View className="flex-row items-start justify-between">
+                <View className="flex-1 pr-3">
+                  <Text className="text-white font-oswaldbold text-4xl mb-2">
+                    {exercise.title}
+                  </Text>
+                  <Text className="text-white/70 font-spacemono text-xs uppercase tracking-widest">
+                    {categoryDisplay}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  onPress={handleSave}
+                  className="w-10 h-10 rounded-full backdrop-blur-md items-center justify-center"
+                  activeOpacity={0.7}
+                >
+                  <Image
+                    source={isSaved ? icons.done : icons.agregar}
+                    style={{ width: 28, height: 28 }}
+                    tintColor={isSaved ? "#C29B2E" : "#fff"}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
+
             <View className="flex-row gap-3 mb-5">
               <StatsCard label="Nivel" value={exercise.difficulty || 'N/A'} />
               <StatsCard label="Duración" value={exercise.duration || 'N/A'} />
@@ -171,12 +198,6 @@ const ExerciseDetails = () => {
             </View>
 
             <View className="gap-3">
-             {/*  <CustomButton
-                title="Análisis en Tiempo Real"
-                rightIcon={<Text className="text-white text-lg">⚡</Text>}
-                onPress={handleRealtimeAnalysis}
-                variant="primary"
-              /> */}
               <CustomButton
                 title="Analizar Video Grabado"
                 rightIcon={<Image source={icons.play} style={{ width: 20, height: 20 }} tintColor="#fff" />}
@@ -188,7 +209,7 @@ const ExerciseDetails = () => {
         </View>
 
         {/* Content Section  */}
-        <View className=" px-5 pb-20">
+        <View className="px-5 pb-20">
           <Image
             source={images.bg}
             className="absolute w-full h-full opacity-25 bg-backgroundImage-premiumGradient"
@@ -209,7 +230,7 @@ const ExerciseDetails = () => {
             </View>
 
             {/* Card Content */}
-            <View className="bg-gymshock-dark-800/95  px-6 pb-6">
+            <View className="bg-gymshock-dark-800/95 px-6 pb-6">
               <Text className="text-white font-oswaldbold text-2xl mb-2 -mt-2">
                 Sobre este ejercicio
               </Text>
@@ -220,7 +241,6 @@ const ExerciseDetails = () => {
                 {exercise.description || "Descripción no disponible"}
               </Text>
 
-              {/* Muscles Tags */}
               {exercise.muscles?.length > 0 && (
                 <View className="flex-row flex-wrap gap-2">
                   {exercise.muscles.map((muscle, index) => (
@@ -233,7 +253,7 @@ const ExerciseDetails = () => {
 
           {/* Technique Card */}
           {exercise.technique && (
-            <View className="bg-gymshock-dark-800/95  rounded-3xl p-6 mb-5 border border-white/5">
+            <View className="bg-gymshock-dark-800/95 rounded-3xl p-6 mb-5 border border-white/5">
               <View className="flex-row items-center mb-4">
                 <View className="w-10 h-10 rounded-full bg-primary-500/20 items-center justify-center mr-3">
                   <Text className="text-primary-400 text-xl">✓</Text>
@@ -248,8 +268,7 @@ const ExerciseDetails = () => {
             </View>
           )}
 
-          {/* Additional Info Card */}
-          <View className="bg-gymshock-dark-800/95  rounded-3xl p-6 border border-white/5">
+          <View className="bg-gymshock-dark-800/95 rounded-3xl p-6 border border-white/5">
             <Text className="text-white font-oswaldbold text-xl mb-4">
               Información Adicional
             </Text>
