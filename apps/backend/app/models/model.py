@@ -36,16 +36,20 @@ class Training(Base):
 class Exercise(Base):
     __tablename__ = "exercise"
 
-    id = Column(String, primary_key=True)
-    title = Column(String)
-    poster_url = Column(String, ForeignKey("poster_url.id"))
-    category = Column(String, ForeignKey("category.id"))
-    difficulty = Column(String, ForeignKey("difficulty.id"))
-    duration_min = Column(String)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    title = Column(String, nullable=False)
+    poster_url = Column(String) # URL string
+    video_url = Column(String)  # URL string for demonstration
+    category_id = Column("category", String, ForeignKey("category.id"))
+    difficulty_id = Column("difficulty", String, ForeignKey("difficulty.id"))
+    duration_min = Column(Integer, default=5)
     description = Column(String)
     technique = Column(String)
-    muscles = Column(JSON)
+    muscles = Column(JSON) # Array of strings
     equipment = Column(String)
+
+    category = relationship("Category")
+    difficulty = relationship("Difficulty")
 
 class PosterUrl(Base):
     __tablename__ = "poster_url"

@@ -28,17 +28,33 @@ class TrainingBase(BaseModel):
     class Config:
         from_attributes = True
 
+class CategoryBase(BaseModel):
+    id: str
+    description: str
+    class Config:
+        from_attributes = True
+
+class DifficultyBase(BaseModel):
+    id: str
+    description: str
+    class Config:
+        from_attributes = True
+
 class ExerciseBase(BaseModel):
     id: str
     title: str
-    poster_url: str
-    category: str
-    difficulty: str
-    duration_min: str
-    description: str
-    technique: str
-    muscles: dict
-    equipment: str
+    poster_url: str | None = None
+    video_url: str | None = None
+    category_id: str | None = None
+    difficulty_id: str | None = None
+    duration_min: int
+    description: str | None = None
+    technique: str | None = None
+    muscles: list[str] | None = None
+    equipment: str | None = None
+    
+    category: CategoryBase | None = None
+    difficulty: DifficultyBase | None = None
 
     class Config:
         from_attributes = True
