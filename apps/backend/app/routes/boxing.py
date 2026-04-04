@@ -71,20 +71,12 @@ async def upload_video(
         session_record.session_rows = result.session_rows
         db.commit()
 
-        # LEER EL VIDEO PROCESADO Y CONVERTIRLO A BASE64
-        with open(result.processed_path, "rb") as video_file:
-            video_bytes = video_file.read()
-            video_base64 = base64.b64encode(video_bytes).decode('utf-8')
-
-        # Devolver JSON con el video en base64 
         return {
-            "video_base64": video_base64,
+            "video_url": f"/boxing/videos/processed/{result.processed_filename}",
             "frames_analyzed": result.frame_count,
             "baseline_used": result.baseline_used,
             "session_id": result.session_id,
             "feedback_summary": result.summary_lines,
-            "metrics_path": str(result.metrics_path) if result.metrics_path else None,
-            "session_file": str(result.session_file) if result.session_file else None,
             "session_rows": result.session_rows,
         }
 
@@ -93,6 +85,14 @@ async def upload_video(
         raise HTTPException(status_code=500, detail=str(exc))
     finally:
         temp_path.unlink(missing_ok=True)
+
+
+@router.get("/videos/processed/{filename}")
+async def serve_processed_video(filename: str):
+    video_path = boxing_service.output_dir / filename
+    if not video_path.exists():
+        raise HTTPException(status_code=404, detail="Video no encontrado")
+    return FileResponse(video_path, media_type="video/mp4")
 
 
 @router.websocket("/ws/jab")
@@ -118,6 +118,11 @@ async def jab_websocket(websocket: WebSocket):
                 await websocket.send_json({"status": "reset"})
                 continue
 
+            msg_type = payload.get("type")
+            if msg_type == "ping":
+                await websocket.send_json({"type": "pong", "ts": payload.get("ts")})
+                continue
+
             frame_b64 = payload.get("frame")
             if not frame_b64:
                 await websocket.send_json({"error": "frame_missing"})
@@ -139,7 +144,7 @@ async def jab_websocket(websocket: WebSocket):
                 await websocket.send_json({"error": "frame_decode_error"})
                 continue
 
-            annotated, features, feedback_msg, jab_event = ws_tracker.process_frame(frame)
+            annotated, features, feedback_msg, jab_event, landmarks = ws_tracker.process_frame(frame)
             output_frame = annotated
             now = time.monotonic()
             display_feedback = None
@@ -154,24 +159,23 @@ async def jab_websocket(websocket: WebSocket):
             if display_feedback:
                 boxing_service.annotate_feedback_on_frame(output_frame, display_feedback)
 
-            encoded = boxing_service.encode_frame_to_base64(output_frame)
-            if encoded is None:
-                await websocket.send_json({"error": "encode_error"})
-                continue
-
+            # The client overlays vector landmarks on its native feed; NO frame encoding needed.
             await websocket.send_json(
                 {
-                    "frame": encoded,
                     "feedback": display_feedback,
                     "jab_detected": bool(jab_event),
                     "frame_index": features.get("frame_index") if features else None,
+                    "tracking_state": features.get("tracking_state") if features else "searching",
+                    "landmarks": landmarks,
                 }
             )
+
     except WebSocketDisconnect:
+        # Client disconnected cleanly — log and exit.
         logger.info("Cliente WebSocket desconectado.")
-    except Exception as exc:  # pragma: no cover - runtime safety
-        logger.exception("Error en WebSocket: %s", exc)
-        await websocket.close(code=1011, reason=str(exc))
+
+    except Exception as exc:
+        logger.exception("Error en WebSocket (conexión cerrada): %s", exc)
 
 
 @router.post("/sessions/save", response_model=SessionSaveResponse)
@@ -199,6 +203,64 @@ async def status():
         baseline_loaded=boxing_service.get_baseline() is not None,
         sessions=boxing_service.get_session_stats(),
     )
+
+
+@router.get("/videos/pro")
+async def list_pro_videos():
+    pro_dir = boxing_service.pro_videos_dir
+    if not pro_dir.exists():
+        return []
+
+    videos = []
+    for f in pro_dir.iterdir():
+        if f.suffix.lower() in [".mp4", ".mov", ".avi"]:
+            videos.append({
+                "name": f.name,
+                "size": f.stat().st_size,
+                "path": str(f)
+            })
+    return videos
+
+
+@router.post("/videos/pro/{video_name}/process")
+async def process_pro_video(
+    video_name: str,
+    session_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    pro_path = boxing_service.pro_videos_dir / video_name
+    if not pro_path.exists():
+        raise HTTPException(status_code=404, detail="Video profesional no encontrado")
+
+    try:
+        result = boxing_service.process_video_file(pro_path, video_name, session_id)
+
+        session_record = db.query(BoxingSession).filter(
+            BoxingSession.session_id == result.session_id
+        ).one_or_none()
+        if not session_record:
+            session_record = BoxingSession(
+                session_id=result.session_id,
+                processed_filename=result.processed_filename
+            )
+            db.add(session_record)
+
+        session_record.frames_analyzed = result.frame_count
+        session_record.baseline_used = result.baseline_used
+        session_record.feedback_summary = result.summary_lines
+        session_record.metrics_path = str(result.metrics_path) if result.metrics_path else None
+        db.commit()
+
+        return {
+            "video_url": f"/boxing/videos/processed/{result.processed_filename}",
+            "frames_analyzed": result.frame_count,
+            "session_id": result.session_id,
+            "feedback": result.summary_lines,
+            "metrics": result.session_rows
+        }
+    except Exception as exc:
+        logger.exception("Error al procesar video profesional: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.delete("/cleanup", response_model=CleanupResponse)

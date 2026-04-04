@@ -6,12 +6,14 @@ from routes import (
     kafka_router,
     training_router,
     user_router,
+    exercise_router,
 )
 from auth import auth_router
 import logging
 from pathlib import Path
 
 from ml_service.baseline_builder import ensure_baseline
+from seed_exercises import seed_exercises
 
 #Base.metadata.drop_all(bind=engine)  # elimina todas las tablas
 Base.metadata.create_all(bind=engine)
@@ -24,11 +26,9 @@ app.include_router(training_router)
 app.include_router(auth_router)
 app.include_router(boxing_router)
 app.include_router(kafka_router)
+app.include_router(exercise_router)
 
-origins = [
-    "http://localhost:5173", 
-    "http://host.docker.internal:5173"
-]
+origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,9 +44,14 @@ def on_startup():
     db = next(get_db())
     seed_roles(db)
     try:
+        print("🌱 [BACKEND-SEED] Starting ensure_baseline...")
         ensure_baseline()
+        print("🌱 [BACKEND-SEED] Starting seed_exercises...")
+        seed_exercises()
+        print("✅ [BACKEND-SEED] Startup seeding completed successfully.")
     except Exception as exc:
-        logging.warning("No se pudo generar baseline automaticamente: %s", exc)
+        print(f"❌ [BACKEND-SEED] Failed: {exc}")
+        logging.warning("No se pudo generar baseline o seed: %s", exc)
 
 @app.get("/")
 async def root():

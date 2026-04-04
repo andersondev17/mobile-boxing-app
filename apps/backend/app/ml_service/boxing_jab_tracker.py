@@ -90,7 +90,7 @@ class BoxingJabTracker:
         if not result.pose_landmarks:
             self.frame_idx += 1
             self.last_jab_event = None
-            return annotated, None, None, None
+            return annotated, None, None, None, None
 
         mp.solutions.drawing_utils.draw_landmarks(
             annotated,
@@ -104,7 +104,7 @@ class BoxingJabTracker:
         if not features:
             self.frame_idx += 1
             self.last_jab_event = None
-            return annotated, None, None, None
+            return annotated, None, None, None, None
 
         features = self._augment_with_motion(landmarks, features)
         jab_event = self.jab_tracker.update(features, self.frame_idx)
@@ -115,8 +115,30 @@ class BoxingJabTracker:
         if feedback_msg is None:
             feedback_msg = self._heuristic_feedback(features, jab_event)
 
+        # Convert landmarks to serializable list for mobile SVG
+        raw_landmarks = {}
+        target_indices = {
+            'right_shoulder': 12, 'right_elbow': 14, 'right_wrist': 16,
+            'left_shoulder': 11, 'left_elbow': 13, 'left_wrist': 15,
+            'right_hip': 24, 'left_hip': 23
+        }
+        
+        torso_indices = [11, 12, 23, 24]
+        is_tracking_locked = all(landmarks[idx].visibility > 0.65 for idx in torso_indices)
+
+        for name, idx in target_indices.items():
+            lm = landmarks[idx]
+            # MediaPipe landmarks are normalized [0, 1]. Adding visibility to index 3.
+            raw_landmarks[name] = [lm.x, lm.y, lm.z, lm.visibility]
+            
+        if not is_tracking_locked:
+            feedback_msg = "UBICA TU CUERPO EN EL CUADRO"
+            jab_event = None
+            
+        features["tracking_state"] = "locked" if is_tracking_locked else "searching"
+
         self.frame_idx += 1
-        return annotated, features, feedback_msg, jab_event
+        return annotated, features, feedback_msg, jab_event, raw_landmarks
 
     def process_video(self, video_path, return_frames=False):
         cap = cv2.VideoCapture(video_path)
@@ -135,8 +157,9 @@ class BoxingJabTracker:
             ret, frame = cap.read()
             if not ret:
                 break
-
-            annotated, features, feedback, _ = self.process_frame(frame)
+            
+            # Using 5 values now
+            annotated, features, feedback, _, _ = self.process_frame(frame)
 
             if return_frames:
                 annotated_frames.append(annotated)
