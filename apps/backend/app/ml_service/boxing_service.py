@@ -91,11 +91,13 @@ class BoxingAnalyticsService:
         processed_dir: Path | str = Path("processed_videos"),
         upload_dir: Path | str = Path("uploads"),
         baseline_path: Path | str = Path("baseline.parquet"),
+        pro_videos_dir: Path | str = Path("videos_profesionales"),
     ):
         self.temp_dir = Path(temp_dir)
         self.output_dir = Path(output_dir)
         self.processed_dir = Path(processed_dir)
         self.upload_dir = Path(upload_dir)
+        self.pro_videos_dir = Path(pro_videos_dir)
         self.default_baseline_path = Path(baseline_path)
 
         self.session_store = SessionStore()
@@ -106,7 +108,7 @@ class BoxingAnalyticsService:
         self._load_initial_baseline()
 
     def _ensure_directories(self) -> None:
-        for folder in (self.temp_dir, self.output_dir, self.processed_dir, self.upload_dir):
+        for folder in (self.temp_dir, self.output_dir, self.processed_dir, self.upload_dir, self.pro_videos_dir):
             folder.mkdir(parents=True, exist_ok=True)
 
     def _load_initial_baseline(self) -> None:
@@ -186,7 +188,7 @@ class BoxingAnalyticsService:
                 if not ret:
                     break
 
-                overlay_frame, features, tracker_feedback, _ = tracker.process_frame(frame)
+                overlay_frame, features, tracker_feedback, _, landmarks = tracker.process_frame(frame)
                 frame_to_write = overlay_frame if overlay_frame is not None else frame
 
                 writer.write(frame_to_write)
