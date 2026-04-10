@@ -9,6 +9,10 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    # ── Application Modes ────────────────────────────────────
+    # Modes: "dev_mock" or "local_real"
+    ENV_MODE: str = "local_real"
+
     # ── MongoDB ──────────────────────────────────────────────
     MONGO_URI: str = "mongodb://admin:admin123@localhost:27017/boxing_app?authSource=admin"
     MONGO_DB: str = "boxing_app"

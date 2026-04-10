@@ -6,6 +6,11 @@ all route modules. Uses the modern lifespan handler instead
 of deprecated on_event("startup").
 """
 
+import sys
+if not (sys.version_info.major == 3 and sys.version_info.minor in [10, 11]):
+    print(f"❌ ERROR: Incompatible Python version {sys.version}. System requires 3.10 or 3.11 ONLY.")
+    sys.exit(1)
+
 import logging
 from contextlib import asynccontextmanager
 

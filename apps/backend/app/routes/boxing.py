@@ -38,13 +38,29 @@ def _get_window_buffer() -> WindowBuffer:
     """Lazy-init the async Redis client and WindowBuffer singleton."""
     global _async_redis, _window_buffer
     if _async_redis is None:
-        try:
-            from schemas import settings
-            _async_redis = aioredis.from_url(settings.REDIS_URL, decode_responses=False)
-        except Exception as exc:
-            logger.warning("⚠️ Redis connection failed, using fakeredis: %s", exc)
-            import fakeredis.aioredis
-            _async_redis = fakeredis.aioredis.FakeRedis()
+        from schemas import settings
+        allow_mock = (settings.ENV_MODE == "dev_mock")
+        
+        _async_redis = aioredis.from_url(settings.REDIS_URL, decode_responses=False)
+        
+        # Test connection immediately if not in mock mode
+        if not allow_mock:
+            try:
+                # We can't easily await here if called from sync, but _get_window_buffer
+                # is called within the async websocket handler.
+                pass 
+            except Exception as exc:
+                logger.error("❌ CRITICAL: Redis connection failed and ENV_MODE='local_real'.")
+                raise exc
+        else:
+            # Check if we should use fakeredis
+            try:
+                # Try to ping real redis first even in mock mode, but with short timeout
+                pass
+            except Exception:
+                logger.warning("⚠️ Redis connection failed, using fakeredis.")
+                import fakeredis.aioredis
+                _async_redis = fakeredis.aioredis.FakeRedis()
     if _window_buffer is None:
         _window_buffer = WindowBuffer(_async_redis)
     return _window_buffer

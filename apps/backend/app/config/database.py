@@ -37,6 +37,8 @@ async def init_db() -> None:
         AuthCode,
     )
 
+    allow_mock = (settings.ENV_MODE == "dev_mock")
+    
     try:
         _client = AsyncIOMotorClient(settings.MONGO_URI, serverSelectionTimeoutMS=2000)
         # Verify connection
@@ -44,10 +46,14 @@ async def init_db() -> None:
         db = _client[settings.MONGO_DB]
         logger.info("MongoDB connected: %s / %s", settings.MONGO_URI.split("@")[-1], settings.MONGO_DB)
     except Exception as exc:
-        logger.warning("⚠️ MongoDB connection failed, using in-memory mock: %s", exc)
-        from mongomock_motor import AsyncMongoMockClient as MockClient
-        _client = MockClient()
-        db = _client[settings.MONGO_DB]
+        if allow_mock:
+            logger.warning("⚠️ MongoDB connection failed, using in-memory mock: %s", exc)
+            from mongomock_motor import AsyncMongoMockClient as MockClient
+            _client = MockClient()
+            db = _client[settings.MONGO_DB]
+        else:
+            logger.error("❌ CRITICAL: MongoDB connection failed and ENV_MODE='local_real'. Exiting.")
+            raise exc
 
     await init_beanie(
         database=db,

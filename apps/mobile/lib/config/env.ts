@@ -17,12 +17,19 @@ const getApiBaseUrl = (): string => {
       return process.env.EXPO_PUBLIC_API_URL;
     }
 
-    // Priority 2: Use LOCAL_IP for physical devices
-    if (localIp) {
+    // Priority 2: Use LOCAL_IP if explicitly provided
+    if (localIp && localIp !== "YOUR_IP_HERE") {
       return `http://${localIp}:${port}`;
     }
 
-    // Priority 3: Auto-detect based on platform
+    // Priority 3: Dynamic resolution via Expo Debugger Host
+    const debuggerHost = Constants.expoConfig?.hostUri;
+    if (debuggerHost) {
+      const host = debuggerHost.split(':')[0];
+      return `http://${host}:${port}`;
+    }
+
+    // Priority 4: Auto-detect based on platform
     if (Platform.OS === 'android') {
       return `http://10.0.2.2:${port}`; // Android Emulator
     }
