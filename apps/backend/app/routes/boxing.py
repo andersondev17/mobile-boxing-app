@@ -38,8 +38,13 @@ def _get_window_buffer() -> WindowBuffer:
     """Lazy-init the async Redis client and WindowBuffer singleton."""
     global _async_redis, _window_buffer
     if _async_redis is None:
-        from schemas import settings
-        _async_redis = aioredis.from_url(settings.REDIS_URL, decode_responses=False)
+        try:
+            from schemas import settings
+            _async_redis = aioredis.from_url(settings.REDIS_URL, decode_responses=False)
+        except Exception as exc:
+            logger.warning("⚠️ Redis connection failed, using fakeredis: %s", exc)
+            import fakeredis.aioredis
+            _async_redis = fakeredis.aioredis.FakeRedis()
     if _window_buffer is None:
         _window_buffer = WindowBuffer(_async_redis)
     return _window_buffer
@@ -147,8 +152,12 @@ async def jab_websocket(websocket: WebSocket):
     conn_session_id = str(uuid.uuid4())
     window_buffer = _get_window_buffer()
 
+    jitter_buffer = []
+    MAX_BUFFER_SIZE = 3 # small window for reordering
+    
     try:
         while True:
+            # Receive next message
             message = await websocket.receive()
             if "text" in message and message["text"] is not None:
                 payload = json.loads(message["text"])
@@ -157,11 +166,23 @@ async def jab_websocket(websocket: WebSocket):
             else:
                 continue
 
-            # ── Ping/Pong ────────────────────────────────────
+            # ── Ping/Pong (process immediately) ──────────────
             msg_type = payload.get("type")
             if msg_type == "ping":
                 await websocket.send_json({"type": "pong", "ts": payload.get("ts")})
                 continue
+            
+            # ── Jitter Buffer: Reordering ────────────────────
+            # Push payload into buffer and sort by timestamp
+            ts = payload.get("timestamp", time.time())
+            jitter_buffer.append((ts, payload))
+            jitter_buffer.sort(key=lambda x: x[0])
+            
+            if len(jitter_buffer) < MAX_BUFFER_SIZE:
+                continue
+            
+            # Pop the oldest frame to process
+            _, payload = jitter_buffer.pop(0)
 
             # ── Reset ────────────────────────────────────────
             action = payload.get("action")
@@ -227,6 +248,8 @@ async def jab_websocket(websocket: WebSocket):
                             qualitative_label = dtw_scorer.get_qualitative_label(dtw_score)
                         else:
                             dtw_score = 0.0
+                    else:
+                        pass
 
                         # punch_classifier falls back to ("null", 1.0) when no
                         # trained model file exists — safe cold-start behavior.

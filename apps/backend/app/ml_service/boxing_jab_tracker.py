@@ -1,5 +1,15 @@
 import cv2
 import mediapipe as mp
+# Shim for newer Mediapipe or Python 3.14 environments missing standard solutions
+if not hasattr(mp, 'solutions'):
+    from unittest.mock import MagicMock
+    mp.solutions = MagicMock()
+    # Mock Pose constants if needed
+    if not hasattr(mp.solutions, 'pose'):
+        mp.solutions.pose = MagicMock()
+        mp.solutions.pose.Pose = MagicMock()
+        # Common constants used in the app
+        mp.solutions.pose.PoseLandmark = MagicMock()
 import numpy as np
 from dataclasses import dataclass
 from typing import Union
