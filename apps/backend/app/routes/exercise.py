@@ -1,35 +1,44 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session, joinedload
-import traceback
-import sys
+"""
+Exercise endpoints using Beanie ODM.
+"""
+
+from fastapi import APIRouter, HTTPException
 from typing import List
-from config import get_db
+
 from models import Exercise
 from schemas import ExerciseBase
 
 router = APIRouter(prefix="/exercises", tags=["exercises"])
 
+
+def _exercise_to_response(ex: Exercise) -> ExerciseBase:
+    """Convert Beanie document to response schema."""
+    return ExerciseBase(
+        id=str(ex.id),
+        title=ex.title,
+        poster_url=ex.poster_url,
+        video_url=ex.video_url,
+        category=ex.category,
+        difficulty=ex.difficulty,
+        duration_min=ex.duration_min,
+        description=ex.description,
+        technique=ex.technique,
+        muscles=ex.muscles,
+        equipment=ex.equipment,
+    )
+
+
 @router.get("/", response_model=List[ExerciseBase])
-def get_exercises(db: Session = Depends(get_db)):
-    try:
-        exercises = db.query(Exercise).options(
-            joinedload(Exercise.category),
-            joinedload(Exercise.difficulty)
-        ).all()
-        return exercises
-    except Exception as e:
-        print("❌ [BACKEND-ERROR] Detailed traceback:", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
-        raise HTTPException(status_code=500, detail=str(e))
+async def get_exercises() -> List[ExerciseBase]:
+    """List all exercises."""
+    exercises = await Exercise.find_all().to_list()
+    return [_exercise_to_response(ex) for ex in exercises]
+
 
 @router.get("/{exercise_id}", response_model=ExerciseBase)
-def get_exercise(exercise_id: str, db: Session = Depends(get_db)):
-    try:
-        exercise = db.query(Exercise).filter(Exercise.id == exercise_id).first()
-        if not exercise:
-            raise HTTPException(status_code=404, detail="Exercise not found")
-        return exercise
-    except Exception as e:
-        print("❌ [BACKEND-ERROR] Detailed traceback:", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
-        raise HTTPException(status_code=500, detail=str(e))
+async def get_exercise(exercise_id: str) -> ExerciseBase:
+    """Get a single exercise by ID."""
+    exercise = await Exercise.get(exercise_id)
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+    return _exercise_to_response(exercise)

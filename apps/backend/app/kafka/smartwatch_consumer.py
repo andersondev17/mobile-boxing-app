@@ -1,17 +1,26 @@
+"""
+Smartwatch telemetry Kafka consumer.
+
+Reads from 'health-metrics' topic and buffers messages
+in Redis for quick API access.
+"""
+
 import json
 import logging
 
 from confluent_kafka import Consumer, KafkaError
 
-from kakfa.storage import append_message
+from kafka.storage import append_message
 from schemas import settings
 
 logger = logging.getLogger(__name__)
 
 
-class KafkaConsumer:
+class SmartWatchConsumer:
+    """Consumes smartwatch telemetry from Kafka and stores in Redis."""
+
     def __init__(self):
-        self.topic = settings.KAFKA_TOPIC
+        self.topic = settings.KAFKA_TOPIC_HEALTH
         self.conf = {
             "bootstrap.servers": settings.KAFKA_BROKERS,
             "group.id": settings.GROUP_ID,
@@ -24,9 +33,15 @@ class KafkaConsumer:
         payload = json.loads(msg.value().decode("utf-8"))
         append_message(payload)
         hr = payload.get("telemetry", {}).get("heart_rate", {}).get("value")
-        logger.info("Received message | Device=%s HR=%s bpm", payload.get("device_id"), hr)
+        logger.info(
+            "Received message | User=%s Device=%s HR=%s bpm",
+            payload.get("user_id"),
+            payload.get("device_id"),
+            hr,
+        )
 
     def start(self):
+        """Run the consumer in an infinite loop."""
         consumer = Consumer(self.conf)
         consumer.subscribe([self.topic])
         try:
@@ -47,4 +62,4 @@ class KafkaConsumer:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    KafkaConsumer().start()
+    SmartWatchConsumer().start()

@@ -2,9 +2,72 @@ import cv2
 import mediapipe as mp
 import numpy as np
 from dataclasses import dataclass
+from typing import Union
 
 from .feature_extractor import extract_features
 from .feedback_engine import FeedbackEngine
+
+# Named landmark keys expected by the dict-based input path.
+_NAMED_TO_INDEX: dict[str, int] = {
+    "nose": 0,
+    "left_eye_inner": 1,
+    "left_eye": 2,
+    "left_eye_outer": 3,
+    "right_eye_inner": 4,
+    "right_eye": 5,
+    "right_eye_outer": 6,
+    "left_ear": 7,
+    "right_ear": 8,
+    "mouth_left": 9,
+    "mouth_right": 10,
+    "left_shoulder": 11,
+    "right_shoulder": 12,
+    "left_elbow": 13,
+    "right_elbow": 14,
+    "left_wrist": 15,
+    "right_wrist": 16,
+    "left_pinky": 17,
+    "right_pinky": 18,
+    "left_index": 19,
+    "right_index": 20,
+    "left_thumb": 21,
+    "right_thumb": 22,
+    "left_hip": 23,
+    "right_hip": 24,
+    "left_knee": 25,
+    "right_knee": 26,
+    "left_ankle": 27,
+    "right_ankle": 28,
+    "left_heel": 29,
+    "right_heel": 30,
+    "left_foot_index": 31,
+    "right_foot_index": 32,
+}
+
+
+class _LandmarkProxy:
+    """Thin proxy that exposes .x, .y, .z, .visibility from a plain dict.
+
+    This allows landmarks received over the WebSocket (as dicts) to be passed
+    directly into ``extract_features``, which expects objects with attribute
+    access (matching the MediaPipe landmark interface).
+
+    Args:
+        data: Dict with at least the keys ``"x"``, ``"y"``, ``"z"``.
+            An optional ``"v"`` or ``"visibility"`` key is mapped to
+            ``.visibility``.  Missing keys default to ``0.0``.
+    """
+
+    __slots__ = ("x", "y", "z", "visibility")
+
+    def __init__(self, data: dict) -> None:
+        self.x: float = float(data.get("x", 0.0))
+        self.y: float = float(data.get("y", 0.0))
+        self.z: float = float(data.get("z", 0.0))
+        # Support both "v" (mobile compact format) and "visibility" keys.
+        self.visibility: float = float(
+            data.get("visibility", data.get("v", 0.0))
+        )
 
 
 @dataclass
@@ -17,7 +80,7 @@ class JabEvent:
 
 
 class JabTracker:
-    def __init__(self, threshold_extension=0.22, threshold_speed=2.5):
+    def __init__(self, threshold_extension=0.28, threshold_speed=0.9):
         self.threshold_extension = threshold_extension
         self.threshold_speed = threshold_speed
         self.state = "idle"
@@ -31,7 +94,7 @@ class JabTracker:
         if not features:
             return None
 
-        ext = features.get("forward_extent", 0.0)
+        ext = features.get("forward_extent_left", 0.0)
         speed = features.get("hand_speed", 0.0)
         retract = features.get("retraction_speed", 0.0)
 
@@ -41,7 +104,7 @@ class JabTracker:
             return None
 
         if self.state == "extended":
-            if retract > 1.5 and ext < 0.15:
+            if retract > 0.8 and ext < 0.15:
                 self.state = "idle"
                 jab_event = JabEvent(frame_idx, speed, ext, retract)
                 self.jabs.append(jab_event)
@@ -78,6 +141,7 @@ class BoxingJabTracker:
     def reset_state(self):
         self.prev_wrist = None
         self.prev_forward_extent = None
+        self.prev_features: dict | None = None
         self.frame_idx = 0
         self.last_jab_event = None
         self.jab_tracker.reset()
@@ -122,7 +186,7 @@ class BoxingJabTracker:
             'left_shoulder': 11, 'left_elbow': 13, 'left_wrist': 15,
             'right_hip': 24, 'left_hip': 23
         }
-        
+
         torso_indices = [11, 12, 23, 24]
         is_tracking_locked = all(landmarks[idx].visibility > 0.65 for idx in torso_indices)
 
@@ -130,15 +194,132 @@ class BoxingJabTracker:
             lm = landmarks[idx]
             # MediaPipe landmarks are normalized [0, 1]. Adding visibility to index 3.
             raw_landmarks[name] = [lm.x, lm.y, lm.z, lm.visibility]
-            
+
         if not is_tracking_locked:
             feedback_msg = "UBICA TU CUERPO EN EL CUADRO"
             jab_event = None
-            
-        features["tracking_state"] = "locked" if is_tracking_locked else "searching"
+
+        features["tracking_state"] = "tracking" if is_tracking_locked else "searching"
 
         self.frame_idx += 1
         return annotated, features, feedback_msg, jab_event, raw_landmarks
+
+    def process_landmarks(
+        self,
+        raw_landmarks: Union[dict, list],
+    ) -> tuple[dict | None, str | None, bool]:
+        """Process a single frame of landmarks received from the mobile client.
+
+        Converts the incoming landmark payload (either a named-key dict or an
+        indexed list of dicts) into proxy objects compatible with
+        ``feature_extractor.extract_features``, then runs the full analysis
+        pipeline: feature extraction, motion augmentation, jab tracking, and
+        feedback generation.
+
+        This method is the preferred entry point for the WebSocket handler
+        because it avoids all OpenCV/MediaPipe video-capture overhead.
+
+        Args:
+            raw_landmarks: Landmark payload in one of two formats:
+
+                * **Dict** (named keys) — e.g.::
+
+                      {
+                          "right_shoulder": [x, y, z, v],
+                          "left_elbow":     [x, y, z, v],
+                          ...
+                      }
+
+                  Values may be a 3- or 4-element list ``[x, y, z]`` /
+                  ``[x, y, z, v]``, or a dict ``{"x": …, "y": …, "z": …}``.
+
+                * **List** (indexed, length 33) — e.g.::
+
+                      [{"x": 0.5, "y": 0.3, "z": -0.1}, ...]
+
+        Returns:
+            A 3-tuple ``(features, feedback_message, jab_detected)`` where:
+
+            * ``features`` – dict of computed metrics (including
+              ``"tracking_state"`` and ``"frame_index"``), or ``None`` if
+              the landmarks were insufficient.
+            * ``feedback_message`` – human-readable coaching cue, or ``None``.
+            * ``jab_detected`` – ``True`` when a complete jab cycle was
+              recognised in this frame.
+        """
+        # ── 1. Build a 33-slot list of _LandmarkProxy objects ──────────
+        proxies: list[_LandmarkProxy | None] = [None] * 33
+
+        if isinstance(raw_landmarks, dict):
+            for name, value in raw_landmarks.items():
+                idx = _NAMED_TO_INDEX.get(name)
+                if idx is None:
+                    continue
+                if isinstance(value, (list, tuple)):
+                    x = float(value[0]) if len(value) > 0 else 0.0
+                    y = float(value[1]) if len(value) > 1 else 0.0
+                    z = float(value[2]) if len(value) > 2 else 0.0
+                    v = float(value[3]) if len(value) > 3 else 0.0
+                    proxies[idx] = _LandmarkProxy({"x": x, "y": y, "z": z, "v": v})
+                elif isinstance(value, dict):
+                    proxies[idx] = _LandmarkProxy(value)
+
+        elif isinstance(raw_landmarks, list):
+            for i, item in enumerate(raw_landmarks[:33]):
+                if isinstance(item, dict):
+                    proxies[i] = _LandmarkProxy(item)
+
+        else:
+            # Unknown format — treat as invalid.
+            self.frame_idx += 1
+            return None, None, False
+
+        # ── 2. Validate minimum required indices ────────────────────────
+        # extract_features needs indices 11-16 (shoulders, elbows, wrists)
+        # and 23-24 (hips).  Torso-lock check needs 11, 12, 23, 24.
+        required_indices = {11, 12, 13, 14, 15, 16, 23, 24}
+        if any(proxies[i] is None for i in required_indices):
+            self.frame_idx += 1
+            return None, None, False
+
+        # ── 3. Feature extraction ───────────────────────────────────────
+        features = extract_features(proxies, prev_features=self.prev_features)
+        if not features:
+            self.frame_idx += 1
+            return None, None, False
+
+        # Save raw biomechanical features for next-frame smoothing (before
+        # motion augmentation adds hand_speed / frame_index keys).
+        self.prev_features = features
+
+        # ── 4. Motion augmentation ──────────────────────────────────────
+        features = self._augment_with_motion(proxies, features)
+
+        # ── 5. Jab tracking ─────────────────────────────────────────────
+        jab_event = self.jab_tracker.update(features, self.frame_idx)
+        if jab_event:
+            self.last_jab_event = jab_event
+
+        # ── 6. Feedback ──────────────────────────────────────────────────
+        feedback_msg = self.feedback_engine.compare(features)
+        if feedback_msg is None:
+            feedback_msg = self._heuristic_feedback(features, jab_event)
+
+        # ── 7. Tracking-lock check ───────────────────────────────────────
+        torso_indices = [11, 12, 23, 24]
+        is_tracking_locked = all(
+            proxies[i] is not None and proxies[i].visibility > 0.65
+            for i in torso_indices
+        )
+
+        if not is_tracking_locked:
+            feedback_msg = "UBICA TU CUERPO EN EL CUADRO"
+            jab_event = None
+
+        features["tracking_state"] = "tracking" if is_tracking_locked else "searching"
+
+        self.frame_idx += 1
+        return features, feedback_msg, bool(jab_event)
 
     def process_video(self, video_path, return_frames=False):
         cap = cv2.VideoCapture(video_path)
@@ -157,7 +338,7 @@ class BoxingJabTracker:
             ret, frame = cap.read()
             if not ret:
                 break
-            
+
             # Using 5 values now
             annotated, features, feedback, _, _ = self.process_frame(frame)
 
@@ -186,7 +367,7 @@ class BoxingJabTracker:
 
         retraction_speed = 0.0
         if self.prev_forward_extent is not None:
-            delta_extent = features["forward_extent"] - self.prev_forward_extent
+            delta_extent = features["forward_extent_left"] - self.prev_forward_extent
             if delta_extent < 0:
                 retraction_speed = float(abs(delta_extent) / self.dt)
 
@@ -196,7 +377,7 @@ class BoxingJabTracker:
         augmented["frame_index"] = self.frame_idx
 
         self.prev_wrist = wrist
-        self.prev_forward_extent = features["forward_extent"]
+        self.prev_forward_extent = features["forward_extent_left"]
 
         return augmented
 
@@ -205,7 +386,7 @@ class BoxingJabTracker:
         if jab_event:
             return "Buen jab detectado."
 
-        extent = features.get("forward_extent", 0.0)
+        extent = features.get("forward_extent_left", 0.0)
         speed = features.get("hand_speed", 0.0)
 
         if extent < 0.15:

@@ -1,26 +1,15 @@
-// services/authService.js
-
-interface LoginResponse {
-    token: string;
-    user: {
-        id: number;
-        name: string;
-        email: string;
-    };
-}
-
-export async function mockLogin(email: string, password: string): Promise<LoginResponse> {
-    // Simula una petición exitosa
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve({
-                token: "fake-jwt-token",
-                user: {
-                    id: 1,
-                    name: "Usuario Demo",
-                    email,
-                },
-            });
-        }, 1000);
-    });
-}
+/**
+ * Auth service re-exports for backwards compatibility.
+ * Full authentication logic lives in `lib/api/auth.ts`.
+ * The previous mockLogin function has been removed — use loginUser() instead.
+ *
+ * @module services/authservice
+ */
+export {
+  loginUser,
+  registerUser,
+  logoutUser,
+  getCurrentUser,
+  loginWithGoogle,
+  isAuthenticated,
+} from '@/lib/api/auth';

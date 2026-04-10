@@ -1,5 +1,19 @@
+/**
+ * RealtimePoseService
+ * WebSocket client for real-time jab analysis.
+ *
+ * SEND format (mobile → backend):
+ *   { landmarks: Array<{x,y,z}>, fps: 30, frame_index: number, user_id?, session_id? }
+ *
+ * RECEIVE format (backend → mobile):
+ *   { feedback, jab_detected, frame_index, tracking_state, session_id? }
+ *
+ * Restriction C-01: NEVER send base64 or raw image bytes.
+ * @module services/realtimePoseService
+ */
+
 import ENV from '@/lib/config/env';
-import type { JabRealtimeFramePayload, JabRealtimeServerMessage } from '@/interfaces/interfaces';
+import type { JabRealtimeServerMessage, LandmarkPoint } from '@/interfaces/interfaces';
 
 const stripTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
 
@@ -18,12 +32,40 @@ const toWebsocketScheme = (value: string): string => {
 
 const WS_BASE_URL = toWebsocketScheme(stripTrailingSlash(ENV.API_BASE_URL));
 
+/** WebSocket connection lifecycle states. */
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
+/**
+ * Callbacks provided to {@link RealtimePoseService.connect}.
+ * Use `onPoseUpdate` to receive processed server messages.
+ */
 export interface RealtimePoseServiceCallbacks {
+  /** Called whenever the WebSocket connection state changes. */
   onStatusChange: (status: ConnectionStatus) => void;
-  onFrame: (data: JabRealtimeFramePayload) => void;
+  /**
+   * Called for every processed server message.
+   * Receives the full parsed {@link JabRealtimeServerMessage}.
+   */
+  onPoseUpdate: (data: JabRealtimeServerMessage) => void;
+  /** Called on WebSocket errors or JSON parse failures. */
   onError: (error: Error) => void;
+}
+
+/**
+ * Payload sent from mobile to the backend WebSocket.
+ * All 33 MediaPipe pose landmarks must be present.
+ */
+export interface LandmarkPayload {
+  /** 33 normalised pose landmarks [[x, y, z]] in MediaPipe order. */
+  landmarks: LandmarkPoint[];
+  /** Target frames-per-second — always 30. */
+  fps: number;
+  /** Zero-based monotonic counter for the current session. */
+  frame_index: number;
+  /** Optional authenticated user identifier. */
+  user_id?: string;
+  /** Optional session identifier returned by the backend. */
+  session_id?: string;
 }
 
 class RealtimePoseService {
@@ -33,6 +75,12 @@ class RealtimePoseService {
   private pendingFrames = 0;
   private readonly MAX_PENDING_FRAMES = 2;
 
+  /**
+   * Open the WebSocket and register lifecycle callbacks.
+   * A no-op if the socket is already open.
+   *
+   * @param callbacks - Handlers for status, pose updates and errors.
+   */
   connect(callbacks: RealtimePoseServiceCallbacks): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       if (__DEV__) {
@@ -58,19 +106,14 @@ class RealtimePoseService {
 
       this.ws.onmessage = (event) => {
         try {
-          const parsed: JabRealtimeServerMessage = JSON.parse(event.data);
+          const parsed: JabRealtimeServerMessage = JSON.parse(event.data as string);
 
           if (parsed.error) {
             callbacks.onError(new Error(parsed.error));
             return;
           }
 
-          callbacks.onFrame({
-            frame: parsed.frame,
-            feedback: parsed.feedback ?? null,
-            jab_detected: parsed.jab_detected ?? false,
-            frame_index: typeof parsed.frame_index === 'number' ? parsed.frame_index : null,
-          });
+          callbacks.onPoseUpdate(parsed);
         } catch (error) {
           if (__DEV__) {
             console.error('[RealtimePoseService] Error parsing WebSocket message', error);
@@ -107,39 +150,74 @@ class RealtimePoseService {
     }
   }
 
-  sendFrame(base64Image: string, fps?: number): boolean {
+  /**
+   * Send a landmark frame to the backend.
+   *
+   * Validates that exactly 33 landmarks are present.
+   * Drops the frame (returns `false`) when:
+   *  - The WebSocket is not in OPEN state.
+   *  - There are already {@link MAX_PENDING_FRAMES} unacknowledged frames
+   *    (backpressure protection).
+   *
+   * C-01: Does NOT send any image data — only coordinate arrays.
+   *
+   * @param landmarks  - 33 normalised pose landmarks.
+   * @param frameIndex - Monotonic frame counter for the session.
+   * @param userId     - Optional authenticated user id.
+   * @param sessionId  - Optional session id echoed from the backend.
+   * @returns `true` if the payload was queued, `false` if the frame was dropped.
+   */
+  sendLandmarks(
+    landmarks: LandmarkPoint[],
+    frameIndex: number,
+    userId?: string,
+    sessionId?: string,
+  ): boolean {
+    if (landmarks.length !== 33) {
+      if (__DEV__) {
+        console.warn(
+          `[RealtimePoseService] Expected 33 landmarks, got ${landmarks.length}. Frame dropped.`,
+        );
+      }
+      return false;
+    }
+
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       if (__DEV__) {
-        console.warn('[RealtimePoseService] WebSocket not ready, skipping frame');
+        console.warn('[RealtimePoseService] WebSocket not ready, dropping frame');
       }
       return false;
     }
 
     if (this.pendingFrames >= this.MAX_PENDING_FRAMES) {
       if (__DEV__) {
-        console.warn('[RealtimePoseService] Backend overloaded, skipping frame');
+        console.warn('[RealtimePoseService] Backend overloaded, dropping frame');
       }
       return false;
     }
 
     try {
-      const payload = JSON.stringify(
-        typeof fps === 'number'
-          ? { frame: base64Image, fps }
-          : { frame: base64Image },
-      );
-      this.ws.send(payload);
+      const payload: LandmarkPayload = {
+        landmarks,
+        fps: 30,
+        frame_index: frameIndex,
+        ...(userId !== undefined && { user_id: userId }),
+        ...(sessionId !== undefined && { session_id: sessionId }),
+      };
+
+      this.ws.send(JSON.stringify(payload));
       this.pendingFrames++;
       return true;
     } catch (error) {
       if (__DEV__) {
-        console.error('[RealtimePoseService] Error sending frame', error);
+        console.error('[RealtimePoseService] Error sending landmarks', error);
       }
       this.callbacks?.onError(error as Error);
       return false;
     }
   }
 
+  /** Close the WebSocket and reset all internal state. */
   disconnect(): void {
     this.isProcessing = false;
 
@@ -152,18 +230,25 @@ class RealtimePoseService {
     this.pendingFrames = 0;
   }
 
+  /** Returns `true` when the WebSocket is in the OPEN state. */
   isConnected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN;
   }
 
+  /** Returns `true` while a session is actively processing frames. */
   getIsProcessing(): boolean {
     return this.isProcessing;
   }
 
+  /** Number of frames sent but not yet acknowledged by the backend. */
   getPendingFrames(): number {
     return this.pendingFrames;
   }
 
+  /**
+   * Send a reset command to the backend, clearing its pose state machine.
+   * Does nothing if the WebSocket is not open.
+   */
   requestReset(): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       return;
@@ -179,4 +264,5 @@ class RealtimePoseService {
   }
 }
 
+/** Singleton instance used across the app. */
 export const realtimePoseService = new RealtimePoseService();

@@ -1,25 +1,80 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.engine import URL
-from schemas import settings
+"""
+MongoDB connection and Beanie ODM initialization.
 
-url = URL.create(
-    drivername = settings.POSTGRES_DRIVER,
-    username = settings.POSTGRES_USER,
-    password = settings.POSTGRES_PASSWORD,
-    host = settings.POSTGRES_HOST,
-    port = settings.POSTGRES_PORT,
-    database = settings.POSTGRES_DB
-)
+Uses motor (async MongoDB driver) with Beanie ODM for
+Pydantic-native document models. Initializes all document
+classes on application startup.
+"""
 
-engine = create_engine(url)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False,bind=engine)
-Base = declarative_base()
+import logging
+from motor.motor_asyncio import AsyncIOMotorClient
+from beanie import init_beanie
+
+from schemas.env import settings
+
+logger = logging.getLogger(__name__)
+
+_client: AsyncIOMotorClient | None = None
+
+
+async def init_db() -> None:
+    """Initialize MongoDB connection and Beanie ODM.
+
+    Called once during application startup via the lifespan handler.
+    Registers all Beanie Document subclasses for the configured database.
+    """
+    global _client
+
+    from models import (
+        User,
+        Role,
+        Training,
+        Exercise,
+        Category,
+        Difficulty,
+        BoxingSession,
+        Consent,
+        AuthCode,
+    )
+
+    _client = AsyncIOMotorClient(settings.MONGO_URI)
+    db = _client[settings.MONGO_DB]
+
+    await init_beanie(
+        database=db,
+        document_models=[
+            User,
+            Role,
+            Training,
+            Exercise,
+            Category,
+            Difficulty,
+            BoxingSession,
+            Consent,
+            AuthCode,
+        ],
+    )
+    logger.info("MongoDB connected: %s / %s", settings.MONGO_URI.split("@")[-1], settings.MONGO_DB)
+
+
+async def close_db() -> None:
+    """Close the MongoDB connection pool.
+
+    Called during application shutdown via the lifespan handler.
+    """
+    global _client
+    if _client:
+        _client.close()
+        _client = None
+        logger.info("MongoDB connection closed.")
+
 
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    """Return the active motor database instance.
+
+    Use this for raw motor operations outside of Beanie.
+    Beanie documents use their own internal connection.
+    """
+    if _client is None:
+        raise RuntimeError("Database not initialized. Call init_db() first.")
+    return _client[settings.MONGO_DB]

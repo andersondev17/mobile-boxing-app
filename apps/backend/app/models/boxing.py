@@ -1,20 +1,58 @@
-import uuid
-from sqlalchemy import Boolean, Column, Integer, JSON, String, TIMESTAMP, func
+"""
+Boxing session and consent document models.
+"""
 
-from config import Base
+from datetime import datetime, timezone
+from typing import Optional
+
+from beanie import Document
+from pydantic import Field
 
 
-class BoxingSession(Base):
-    __tablename__ = "boxing_session"
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    session_id = Column(String, unique=True, nullable=False)
-    processed_filename = Column(String, nullable=False)
-    frames_analyzed = Column(Integer, nullable=False, default=0)
-    baseline_used = Column(Boolean, nullable=False, default=False)
-    feedback_summary = Column(JSON, nullable=False, default=list)
-    metrics_path = Column(String, nullable=True)
-    session_file = Column(String, nullable=True)
-    session_rows = Column(Integer, nullable=False, default=0)
-    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
+class BoxingSession(Document):
+    """Record of a boxing analysis session."""
+
+    session_id: str
+    user_id: Optional[str] = None
+    processed_filename: str = ""
+    frames_analyzed: int = 0
+    baseline_used: bool = False
+    feedback_summary: list[str] = Field(default_factory=list)
+    metrics_path: Optional[str] = None
+    session_file: Optional[str] = None
+    session_rows: int = 0
+    created_at: datetime = Field(default_factory=_utcnow)
+
+    class Settings:
+        name = "boxing_sessions"
+        indexes = [
+            "session_id",
+            "user_id",
+        ]
+
+
+class Consent(Document):
+    """Explicit user consent record (Ley 1581 Colombia).
+
+    Must be obtained before persisting any biometric data
+    (landmarks, movement metrics, technique scores).
+    """
+
+    user_id: str
+    consent_type: str  # "biometric_data" | "technique_analysis" | "health_metrics"
+    granted: bool = False
+    granted_at: datetime = Field(default_factory=_utcnow)
+    revoked_at: Optional[datetime] = None
+    ip_address: Optional[str] = None
+    policy_version: str = "1.0"
+
+    class Settings:
+        name = "consents"
+        indexes = [
+            "user_id",
+            "consent_type",
+        ]

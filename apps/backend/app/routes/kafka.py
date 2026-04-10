@@ -1,20 +1,25 @@
+"""
+Kafka telemetry query endpoints.
+"""
+
 from fastapi import APIRouter, HTTPException, Query
 
-from kakfa import load_messages
+from kafka import load_messages
 
 router = APIRouter(prefix="/kafka", tags=["kafka"])
 
 
 @router.get("/smartwatch/messages")
 def get_smartwatch_messages(
-    device_id: str = Query(..., description="Identificador del dispositivo."),
+    device_id: str = Query(..., description="Device identifier"),
     limit: int = Query(
         default=1,
         ge=1,
         le=100,
-        description="Numero maximo de registros mas recientes.",
+        description="Max number of recent records",
     ),
 ):
+    """Query buffered smartwatch telemetry from Redis."""
     records = load_messages(limit=limit, device_id=device_id)
     if not records:
         raise HTTPException(

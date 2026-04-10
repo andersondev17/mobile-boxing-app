@@ -1,77 +1,49 @@
+/**
+ * Schema alignment status vs backend (apps/backend/app/routes/boxing.py)
+ *
+ * ALIGNED:
+ *   - JabRealtimeServerMessage.feedback        ← backend sends "feedback": string | null
+ *   - JabRealtimeServerMessage.jab_detected    ← backend sends "jab_detected": bool
+ *   - JabRealtimeServerMessage.frame_index     ← backend sends "frame_index": int | null
+ *   - JabRealtimeServerMessage.tracking_state  ← backend sends "tracking_state": string
+ *   - JabRealtimeServerMessage.session_id      ← backend echoes session identifier
+ *   - CVPipelineLandmarks (named key format)   ← backend echoes landmark dict under "landmarks"
+ *   - CVPipelineResponse.count / .state        ← used by realtime UI state machine
+ *   - LandmarkPoint                            ← {x, y, z} normalised coordinate (MediaPipe)
+ *
+ * SEND payload format (mobile → backend):
+ *   { landmarks: LandmarkPoint[], fps: 30, frame_index: number, user_id?, session_id? }
+ *   See LandmarkPayload in realtimePoseService.ts.
+ *   C-01: Never send base64 frames.
+ */
+
 export interface Exercise {
-  _id: string,
-  title: string,
-  category: string,
-  posterpath: string,
-  difficulty: string,
-  duration: string,
-  description: string,
-  technique: string,
-  muscles: string[],
+  _id: string;
+  title: string;
+  category: string;
+  posterpath: string;
+  difficulty: string;
+  duration: string;
+  description: string;
+  technique: string;
+  muscles: string[];
   equipment: string;
 }
 
-interface TrendingExercise {
-  searchTerm: string;
-  exercise_id: number;
-  title: string;
-  count: number;
-  poster_url: string;
+/**
+ * A single normalised MediaPipe pose landmark.
+ * Values are in the range [0, 1] relative to the frame dimensions.
+ */
+export interface LandmarkPoint {
+  x: number;
+  y: number;
+  z: number;
 }
 
-interface ExerciseDetails {
-  adult: boolean;
-  backdrop_path: string | null;
-  belongs_to_collection: {
-    id: number;
-    name: string;
-    poster_path: string;
-    backdrop_path: string;
-  } | null;
-  budget: number;
-  genres: {
-    id: number;
-    name: string;
-  }[];
-  homepage: string | null;
-  id: number;
-  imdb_id: string | null;
-  original_language: string;
-  original_title: string;
-  overview: string | null;
-  popularity: number;
-  poster_path: string | null;
-  production_companies: {
-    id: number;
-    logo_path: string | null;
-    name: string;
-    origin_country: string;
-  }[];
-  production_countries: {
-    iso_3166_1: string;
-    name: string;
-  }[];
-  release_date: string;
-  revenue: number;
-  runtime: number | null;
-  spoken_languages: {
-    english_name: string;
-    iso_639_1: string;
-    name: string;
-  }[];
-  status: string;
-  tagline: string | null;
-  title: string;
-  video: boolean;
-  vote_average: number;
-  vote_count: number;
-}
-
-interface TrendingCardProps {
-  exercise: TrendingMovie;
-  index: number;
-}
-
+/**
+ * Named landmark keys returned by the backend CV pipeline for arm tracking.
+ * Pixel coordinates within a 640×480 canvas.
+ */
 export interface CVPipelineLandmarks {
   right_shoulder: [number, number];
   right_elbow: [number, number];
@@ -83,6 +55,7 @@ export interface CVPipelineLandmarks {
   angle_l: number;
 }
 
+/** Response from the backend CV pipeline used to drive the realtime UI. */
 export interface CVPipelineResponse {
   count: number;
   state: 'Esperando' | 'Sube' | 'Bien hecho' | 'Reinicio';
@@ -100,13 +73,27 @@ export interface ProcessVideoResult {
   sessionRows?: number;
 }
 
-export interface JabRealtimeFramePayload {
-  frame?: string;
-  feedback?: string | null;
-  jab_detected?: boolean;
-  frame_index?: number | null;
-}
-
-export interface JabRealtimeServerMessage extends JabRealtimeFramePayload {
+/**
+ * Message sent from the backend WebSocket after processing a landmark frame.
+ *
+ * @property feedback       - Human-readable coaching feedback, or null.
+ * @property jab_detected   - Whether a jab was detected in this frame.
+ * @property frame_index    - Zero-based index of the processed frame, or null.
+ * @property tracking_state - Pose-tracker lifecycle state.
+ * @property session_id     - Backend session identifier (echoed back).
+ * @property error          - Non-empty string when the backend returns an error.
+ */
+export interface JabRealtimeServerMessage {
+  feedback: string | null;
+  jab_detected: boolean;
+  frame_index: number | null;
+  tracking_state: 'searching' | 'tracking' | 'idle' | 'locked';
+  session_id?: string;
   error?: string;
 }
+
+/**
+ * @deprecated Use {@link JabRealtimeServerMessage} directly.
+ * Kept for backward-compatibility with code that still references the old name.
+ */
+export type JabRealtimeFramePayload = JabRealtimeServerMessage;

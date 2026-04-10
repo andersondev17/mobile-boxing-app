@@ -1,4 +1,16 @@
-from .schema import UserBase, TrainingBase, ExerciseBase, Token, GoogleUser, LoginRequest, UserCreate
+from .schema import (
+    UserBase,
+    UserCreate,
+    TrainingBase,
+    TrainingCreate,
+    ExerciseBase,
+    Token,
+    TokenData,
+    GoogleUser,
+    LoginRequest,
+    ConsentCreate,
+    ConsentResponse,
+)
 from .boxing import (
     BaselineResponse,
     BoxingSessionSchema,

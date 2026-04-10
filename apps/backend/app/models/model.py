@@ -1,76 +1,121 @@
-from sqlalchemy import Column, Integer, String, DateTime, TIMESTAMP, func, ForeignKey, Boolean, JSON
-from config import Base
-import uuid
-from sqlalchemy.orm import relationship
-from datetime import datetime, timedelta
+"""
+MongoDB document models using Beanie ODM.
 
-class User(Base):
-    __tablename__ = "user"
+Each class maps to a MongoDB collection. Beanie handles
+serialization, validation (via Pydantic), and async CRUD.
+"""
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    email = Column(String, unique=True, nullable=False)
-    name = Column(String)
-    role = Column(String, ForeignKey("role.id"))  # relación directa
-    role_rel = relationship("Role", back_populates="users")
-    email_verified = Column(Boolean, default=False)
-    hashed_password = Column(String, nullable=True)
-    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+from datetime import datetime, timezone, timedelta
+from typing import Optional
 
-class Role(Base):
-    __tablename__ = "role"
+from beanie import Document
+from pydantic import Field
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String)
-    users = relationship("User", back_populates="role_rel")
 
-class Training(Base):
-    __tablename__ = "training"
+def _utcnow() -> datetime:
+    """Timezone-aware UTC now."""
+    return datetime.now(timezone.utc)
 
-    id = Column(String, primary_key=True)
-    user_id= Column(String, ForeignKey("user.id"))
-    title = Column(String)
-    status = Column(Boolean)
-    started_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
-    ended_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
-class Exercise(Base):
-    __tablename__ = "exercise"
+class User(Document):
+    """Registered application user."""
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    title = Column(String, nullable=False)
-    poster_url = Column(String) # URL string
-    video_url = Column(String)  # URL string for demonstration
-    category_id = Column("category", String, ForeignKey("category.id"))
-    difficulty_id = Column("difficulty", String, ForeignKey("difficulty.id"))
-    duration_min = Column(Integer, default=5)
-    description = Column(String)
-    technique = Column(String)
-    muscles = Column(JSON) # Array of strings
-    equipment = Column(String)
+    email: str
+    name: str = ""
+    role: Optional[str] = None
+    email_verified: bool = False
+    hashed_password: Optional[str] = None
+    provider: Optional[str] = None  # "email" | "google"
+    created_at: datetime = Field(default_factory=_utcnow)
 
-    category = relationship("Category")
-    difficulty = relationship("Difficulty")
+    class Settings:
+        name = "users"
+        indexes = [
+            "email",
+        ]
 
-class PosterUrl(Base):
-    __tablename__ = "poster_url"
-    
-    id = Column(String, primary_key=True)
-    url = Column(String)
 
-class Category(Base):
-    __tablename__ = "category"
+class Role(Document):
+    """Application role (admin, trainer, user)."""
 
-    id = Column(String, primary_key=True)
-    description = Column(String)
+    name: str
 
-class Difficulty(Base):
-    __tablename__ = "difficulty"
+    class Settings:
+        name = "roles"
+        indexes = [
+            "name",
+        ]
 
-    id = Column(String, primary_key = True)
-    description = Column(String)
-    
-class AuthCode(Base):
-    __tablename__ = "auth_codes"
-    code = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_email = Column(String, nullable=False)
-    expires_at = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(minutes=2))
+
+class Training(Document):
+    """Training session record."""
+
+    user_id: str
+    title: str
+    status: bool = False
+    started_at: datetime = Field(default_factory=_utcnow)
+    ended_at: Optional[datetime] = None
+
+    class Settings:
+        name = "trainings"
+        indexes = [
+            "user_id",
+        ]
+
+
+class Exercise(Document):
+    """Boxing exercise definition."""
+
+    title: str
+    poster_url: Optional[str] = None
+    video_url: Optional[str] = None
+    category: Optional[str] = None
+    difficulty: Optional[str] = None
+    duration_min: int = 5
+    description: Optional[str] = None
+    technique: Optional[str] = None
+    muscles: list[str] = Field(default_factory=list)
+    equipment: Optional[str] = None
+
+    class Settings:
+        name = "exercises"
+        indexes = [
+            "title",
+            "category",
+        ]
+
+
+class Category(Document):
+    """Exercise category."""
+
+    name: str
+    description: str = ""
+
+    class Settings:
+        name = "categories"
+
+
+class Difficulty(Document):
+    """Exercise difficulty level."""
+
+    name: str
+    description: str = ""
+
+    class Settings:
+        name = "difficulties"
+
+
+class AuthCode(Document):
+    """Temporary OAuth authorization code for token exchange."""
+
+    code: str
+    user_email: str
+    expires_at: datetime = Field(
+        default_factory=lambda: _utcnow() + timedelta(minutes=2)
+    )
+
+    class Settings:
+        name = "auth_codes"
+        indexes = [
+            "code",
+        ]

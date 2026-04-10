@@ -1,61 +1,92 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+"""
+Boxing Training API — FastAPI Application Entry Point.
+
+Initializes MongoDB (Beanie), seeds default data, and mounts
+all route modules. Uses the modern lifespan handler instead
+of deprecated on_event("startup").
+"""
+
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from config import engine, Base, seed_roles, get_db
+
+from config import init_db, close_db, run_all_seeds
 from routes import (
     boxing_router,
     kafka_router,
     training_router,
     user_router,
     exercise_router,
+    consent_router,
 )
 from auth import auth_router
-import logging
-from pathlib import Path
-
-from ml_service.baseline_builder import ensure_baseline
-from seed_exercises import seed_exercises
-
-#Base.metadata.drop_all(bind=engine)  # elimina todas las tablas
-Base.metadata.create_all(bind=engine)
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: startup and shutdown hooks.
+
+    Startup:
+      1. Initialize MongoDB connection + Beanie ODM
+      2. Seed default roles, categories, and exercises
+
+    Shutdown:
+      1. Close MongoDB connection pool
+    """
+    # ── Startup ──────────────────────────────────────────────
+    logger.info("🚀 Starting Boxing API...")
+    await init_db()
+    try:
+        await run_all_seeds()
+        logger.info("✅ Startup seeding completed.")
+    except Exception as exc:
+        logger.warning("⚠️ Seed failed (non-fatal): %s", exc)
+
+    yield
+
+    # ── Shutdown ─────────────────────────────────────────────
+    logger.info("🛑 Shutting down Boxing API...")
+    await close_db()
+
+
+app = FastAPI(
+    title="Boxing Training API",
+    description="Real-time boxing technique analysis with ML",
+    version="0.2.0",
+    lifespan=lifespan,
+)
+
+# ── Routes ───────────────────────────────────────────────────
 app.include_router(user_router)
 app.include_router(training_router)
 app.include_router(auth_router)
 app.include_router(boxing_router)
 app.include_router(kafka_router)
 app.include_router(exercise_router)
+app.include_router(consent_router)
 
-origins = ["*"]
-
+# ── CORS ─────────────────────────────────────────────────────
+# TODO: Restrict origins before production deployment
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_headers=["*"],
     allow_methods=["*"],
-    expose_headers=["*"]
+    expose_headers=["*"],
 )
 
-@app.on_event("startup")
-def on_startup():
-    db = next(get_db())
-    seed_roles(db)
-    try:
-        print("🌱 [BACKEND-SEED] Starting ensure_baseline...")
-        ensure_baseline()
-        print("🌱 [BACKEND-SEED] Starting seed_exercises...")
-        seed_exercises()
-        print("✅ [BACKEND-SEED] Startup seeding completed successfully.")
-    except Exception as exc:
-        print(f"❌ [BACKEND-SEED] Failed: {exc}")
-        logging.warning("No se pudo generar baseline o seed: %s", exc)
 
 @app.get("/")
 async def root():
-    return {"message":"Welcome to fastAPI"}
+    """Health check endpoint."""
+    return {"message": "Boxing Training API v0.2.0", "status": "ok"}
+
 
 if __name__ == "__main__":
     import uvicorn

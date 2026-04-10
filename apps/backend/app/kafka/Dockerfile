@@ -5,7 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY kakfa/requirements.txt /tmp/requirements.txt
+COPY kafka/requirements.txt /tmp/requirements.txt
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends librdkafka1 \
@@ -14,4 +14,4 @@ RUN apt-get update \
 
 COPY . /app
 
-CMD ["python", "kakfa/smartwatch_consumer.py"]
+CMD ["python", "kafka/smartwatch_consumer.py"]

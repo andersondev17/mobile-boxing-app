@@ -5,7 +5,7 @@ import shutil
 import uuid
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -261,7 +261,7 @@ class BoxingAnalyticsService:
             return None
 
         df = pd.DataFrame(rows)
-        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         output_file = self.processed_dir / f"{session_id}_{timestamp}.parquet"
         df.to_parquet(output_file, index=False)
         return output_file

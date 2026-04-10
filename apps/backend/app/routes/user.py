@@ -1,77 +1,51 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import Annotated, List
-from config import get_db
+"""
+User CRUD endpoints using Beanie ODM.
+"""
+
+from fastapi import APIRouter, HTTPException, status
+from typing import List
+
 from models import User
 from schemas import UserBase
-from sqlalchemy.exc import SQLAlchemyError
 
 router = APIRouter(prefix="/user", tags=["user"])
 
-#dependencia de sesión de base datos
-db_dependency = Annotated[Session, Depends(get_db)]
+
+def _user_to_response(user: User) -> UserBase:
+    """Convert Beanie document to response schema."""
+    return UserBase(
+        id=str(user.id),
+        email=user.email,
+        name=user.name,
+        role=user.role,
+        email_verified=user.email_verified,
+        created_at=user.created_at,
+    )
+
 
 @router.get("/", response_model=List[UserBase])
-async def get_users(db: db_dependency) -> List[UserBase]:
-    result = db.query(User).limit(10).all()
-    if not result:
+async def get_users() -> List[UserBase]:
+    """List all users (limited to 10)."""
+    users = await User.find_all().limit(10).to_list()
+    if not users:
         raise HTTPException(status_code=404, detail="Users not found")
-    
-    return result
+    return [_user_to_response(u) for u in users]
+
 
 @router.get("/{user_id}", response_model=UserBase)
-async def get_user(user_id: str, db: db_dependency) -> UserBase:
-    result = db.query(User).filter(User.id == user_id).first()
-    if not result:
+async def get_user(user_id: str) -> UserBase:
+    """Get a single user by ID."""
+    user = await User.get(user_id)
+    if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    return result
+    return _user_to_response(user)
 
-@router.post("/", response_model=UserBase, status_code=status.HTTP_201_CREATED)
-async def add_user(user: UserBase, db: db_dependency) -> UserBase:
-    existing_user = db.query(User).filter(User.id == user.id).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="User with this ID already exists")
 
-    db_user = User(**user.model_dump())
-
-    try: 
-        db.add(db_user)
-        db.commit()
-        db.refresh(db_user)
-        return db_user
-    except SQLAlchemyError as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-                    
-@router.put("/{user_id}", response_model=UserBase, status_code=status.HTTP_200_OK)
-async def update_user(user_id: str, user: UserBase, db: db_dependency) -> UserBase:
-    result = db.query(User).filter(User.id == user_id).first()
-    if not result:
+@router.delete("/{user_id}", response_model=dict)
+async def delete_user(user_id: str) -> dict:
+    """Delete a user by ID."""
+    user = await User.get(user_id)
+    if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    for field, value in user.model_dump().items():
-        if value is not None:
-            setattr(result, field, value)
-
-    try:
-        db.commit()
-        db.refresh(result)
-        return result
-    except SQLAlchemyError as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-
-@router.delete("/{user_id}", response_model=dict, status_code=status.HTTP_200_OK)
-async def delete_user(user_id: str, db: db_dependency) -> dict:
-    result = db.query(User).filter(User.id == user_id).first()
-    if not result:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    try:
-        db.delete(result)
-        db.commit()
-        return {"message":"User deleted successfully"}
-    except SQLAlchemyError as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    await user.delete()
+    return {"message": "User deleted successfully"}
