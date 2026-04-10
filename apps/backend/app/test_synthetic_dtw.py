@@ -22,32 +22,25 @@ def main():
     print(f"Score: {sc:.2f} | {get_qualitative_label(sc)}")
     
     print("\n--- ORIGINAL vs SYNTHETIC ---")
-    scores = []
-    # Test first 10 synthetic augmentations
-    for aug_id in range(1, 11):
-        syn_seq = aug_df[aug_df['aug_id'] == aug_id].head(30).to_dict('records')
-        if len(syn_seq) < 30:
-            continue
-        sc = score_window(syn_seq, orig_window)
-        scores.append(sc)
-        print(f"Synthetic {aug_id} | Score: {sc:.2f} | {get_qualitative_label(sc)}")
-        
-    print(f"Avg Synthetic Score: {np.mean(scores):.2f}")
+    categories = ['GOOD', 'ACCEPTABLE', 'BAD']
     
-    print("\n--- ORIGINAL vs RANDOM ---")
-    rand_scores = []
-    for _ in range(5):
-        rand_win = []
-        for _ in range(30):
-            rand_win.append({
-                'elbow_angle_left': np.random.uniform(0, 180),
-                'forward_extent_left': np.random.uniform(-0.5, 0.5),
-                'hand_speed': np.random.uniform(0, 15),
-                'retraction_speed': np.random.uniform(0, 5)
-            })
-        sc = score_window(rand_win, orig_window)
-        rand_scores.append(sc)
-        print(f"Random | Score: {sc:.2f} | {get_qualitative_label(sc)}")
+    for cat in categories:
+        cat_scores = []
+        cat_df = aug_df[aug_df['category'] == cat]
+        for aug_id in cat_df['aug_id'].unique():
+            syn_seq = cat_df[cat_df['aug_id'] == aug_id].head(30).to_dict('records')
+            if len(syn_seq) < 30:
+                continue
+            sc = score_window(syn_seq, orig_window)
+            cat_scores.append(sc)
+            
+        print(f"--- Category: {cat} ---")
+        if cat_scores:
+            print(f"Mean: {np.mean(cat_scores):.2f}")
+            print(f"Min:  {np.min(cat_scores):.2f}")
+            print(f"Max:  {np.max(cat_scores):.2f}")
+        else:
+            print("No data.")
 
 if __name__ == "__main__":
     main()

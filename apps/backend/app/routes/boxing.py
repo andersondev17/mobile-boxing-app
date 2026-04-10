@@ -234,6 +234,19 @@ async def jab_websocket(websocket: WebSocket):
                         if punch_cls != "null":
                             punch_type = punch_cls
 
+                    # Phase 22 - Data Strategy: Store structured session payload mapping natively
+                    structured_metric = {
+                        "timestamp": payload.get("timestamp", time.time()),
+                        "frame_index": features.get("frame_index"),
+                        "tracking_state": features.get("tracking_state"),
+                        "dtw_score": dtw_score,
+                        "qualitative_label": qualitative_label,
+                        "punch_type": punch_type
+                    }
+                    # Filter structural metrics to explicitly not log arrays unless aggregated
+                    boxing_service.session_store.ensure(effective_session)
+                    boxing_service.session_store.extend(effective_session, [structured_metric])
+                    
                 now = time.monotonic()
                 display_feedback = None
 

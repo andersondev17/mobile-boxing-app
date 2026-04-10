@@ -10,20 +10,22 @@ from scipy.interpolate import interp1d
 
 from ml_service.dtw_scorer import DTW_FEATURE_ORDER
 
-def generate_synthetic_data(df, augmentations=5):
+def apply_temporal_noise(size, scale, correlation=0.8):
+    """Generate temporally correlated noise (AR(1) process)."""
+    noise = np.zeros(size)
+    noise[0] = np.random.normal(0, scale)
+    for i in range(1, size):
+        noise[i] = correlation * noise[i-1] + np.sqrt(1 - correlation**2) * np.random.normal(0, scale)
+    return noise
+
+def generate_synthetic_data(df, augmentations_per_type=10):
     """
     Generate synthetic boxing trajectories from a baseline dataframe.
     """
-    # Assuming df represents 30 frames or has a frame_index
-    # Group by sequence or just treat the whole file as one sequence
-    # For now, baseline.parquet contains a series of frames. 
-    # Let's chunk them into 30 frame sequences if multiple, or just take first 30
-    
     n_frames = len(df)
     if n_frames < 30:
         frames_list = [df.to_dict('records')]
     else:
-        # Just use first 30 frames as base reference
         frames_list = [df.head(30).to_dict('records')]
         
     augmented_records = []
@@ -34,70 +36,84 @@ def generate_synthetic_data(df, augmentations=5):
             augmented_records.extend(seq)
             continue
             
-        # Add original
+        # 1. Add Original
         seq_df['synthetic'] = False
+        seq_df['category'] = 'ORIGINAL'
         seq_df['aug_id'] = 0
         augmented_records.extend(seq_df.to_dict('records'))
         
-        for aug_idx in range(1, augmentations + 1):
-            aug_df = seq_df.copy()
-            
-            # A. Temporal scaling (resample and interpolate back to 30)
-            orig_len = len(aug_df)
-            target_len = random.randint(25, 40)
-            
-            x_orig = np.linspace(0, 1, orig_len)
-            x_target = np.linspace(0, 1, target_len)
-            x_30 = np.linspace(0, 1, 30)
-            
-            temp_dict = {}
-            for col in DTW_FEATURE_ORDER:
-                if col in aug_df.columns:
-                    # 1. stretch/compress
-                    f_interp = interp1d(x_orig, aug_df[col].values, kind='linear', fill_value="extrapolate")
-                    stretched = f_interp(x_target)
-                    
-                    # 2. interpolate back to 30 for tensor strictness
-                    f_back = interp1d(np.linspace(0, 1, len(stretched)), stretched, kind='linear', fill_value="extrapolate")
-                    final_30 = f_back(x_30)
-                    temp_dict[col] = final_30
-                else:
-                    temp_dict[col] = np.zeros(30)
-            
-            # Reconstruct to 30 frames
-            aug_df = pd.DataFrame(temp_dict)
-            
-            # B. Amplitude scaling & C. Gaussian noise
-            for col in DTW_FEATURE_ORDER:
-                if col == "elbow_angle_left":
-                    amp = random.uniform(0.95, 1.05)
-                    noise = np.random.normal(0, 2.0, 30) # 2 degrees noise
-                elif col == "forward_extent_left":
-                    amp = random.uniform(0.9, 1.1)
-                    noise = np.random.normal(0, 0.02, 30)
-                elif "speed" in col:
-                    amp = random.uniform(0.85, 1.15)
-                    noise = np.random.normal(0, 0.5, 30)
-                else:
-                    amp = 1.0
-                    noise = 0.0
-                    
-                aug_df[col] = aug_df[col] * amp + noise
+        # Generation loop
+        aug_counter = 1
+        for category in ['GOOD', 'ACCEPTABLE', 'BAD']:
+            for _ in range(augmentations_per_type):
+                aug_df = seq_df.copy()
                 
-            # D. Biomechanical perturbations (shift timing)
-            # Roll hand speed slightly to simulate late retraction
-            if 'hand_speed' in aug_df.columns and 'retraction_speed' in aug_df.columns:
-                shift = random.choice([-2, -1, 1, 2])
-                aug_df['retraction_speed'] = np.roll(aug_df['retraction_speed'].values, shift)
-                # Keep bounds valid
-                aug_df['retraction_speed'] = np.clip(aug_df['retraction_speed'], 0, None)
-                aug_df['hand_speed'] = np.clip(aug_df['hand_speed'], 0, None)
+                # A. Temporal scaling (resample and interpolate back to 30)
+                orig_len = len(aug_df)
                 
-            aug_df['synthetic'] = True
-            aug_df['aug_id'] = aug_idx
-            aug_df['frame_index'] = np.arange(30)
-            
-            augmented_records.extend(aug_df.to_dict('records'))
+                if category == 'GOOD':
+                    target_len = random.randint(28, 32)
+                elif category == 'ACCEPTABLE':
+                    target_len = random.randint(25, 40)
+                else: # BAD
+                    target_len = random.randint(20, 50) # Very fast or very slow
+                    
+                x_orig = np.linspace(0, 1, orig_len)
+                x_target = np.linspace(0, 1, target_len)
+                x_30 = np.linspace(0, 1, 30)
+                
+                temp_dict = {}
+                for col in DTW_FEATURE_ORDER:
+                    if col in aug_df.columns:
+                        f_interp = interp1d(x_orig, aug_df[col].values, kind='linear', fill_value="extrapolate")
+                        stretched = f_interp(x_target)
+                        f_back = interp1d(np.linspace(0, 1, len(stretched)), stretched, kind='linear', fill_value="extrapolate")
+                        final_30 = f_back(x_30)
+                        temp_dict[col] = final_30
+                    else:
+                        temp_dict[col] = np.zeros(30)
+                
+                aug_df = pd.DataFrame(temp_dict)
+                
+                # B. Amplitude scaling & C. Realistic Noise
+                for col in DTW_FEATURE_ORDER:
+                    if category == 'GOOD':
+                        amp = random.uniform(0.98, 1.02)
+                        noise = apply_temporal_noise(30, scale=0.5 if 'angle' in col else 0.005)
+                    elif category == 'ACCEPTABLE':
+                        amp = random.uniform(0.90, 1.10)
+                        noise = apply_temporal_noise(30, scale=2.0 if 'angle' in col else 0.02)
+                    else: # BAD
+                        amp = random.uniform(0.10, 3.00) # Terribly incorrect amplitude
+                        noise = apply_temporal_noise(30, scale=30.0 if 'angle' in col else 1.5, correlation=0.1)
+                        
+                        # Add sensor jitter / dropped frame artifact severely
+                        if random.random() < 0.9:
+                            drop_idx = random.randint(5, 15)
+                            noise[drop_idx:drop_idx+12] = noise[drop_idx-1] # Long Freeze frame artifact
+                            
+                    aug_df[col] = aug_df[col] * amp + noise
+                    
+                # D. Biomechanical perturbations
+                if 'hand_speed' in aug_df.columns and 'retraction_speed' in aug_df.columns:
+                    if category == 'ACCEPTABLE':
+                        shift = random.choice([-2, -1, 1, 2])
+                        aug_df['retraction_speed'] = np.roll(aug_df['retraction_speed'].values, shift)
+                    elif category == 'BAD':
+                        shift = random.choice([-20, -15, 15, 20]) # Complete disconnect between forward and retract
+                        aug_df['retraction_speed'] = np.roll(aug_df['retraction_speed'].values, shift)
+                        aug_df['forward_extent_left'] *= random.uniform(-0.5, 0.2) # Complete garbage extent
+                        
+                    aug_df['retraction_speed'] = np.clip(aug_df['retraction_speed'], 0, None)
+                    aug_df['hand_speed'] = np.clip(aug_df['hand_speed'], 0, None)
+                    
+                aug_df['synthetic'] = True
+                aug_df['category'] = category
+                aug_df['aug_id'] = aug_counter
+                aug_df['frame_index'] = np.arange(30)
+                
+                augmented_records.extend(aug_df.to_dict('records'))
+                aug_counter += 1
             
     return pd.DataFrame(augmented_records)
 
@@ -109,12 +125,12 @@ def main():
     print(f"Loading {source_path}")
     df = pd.read_parquet(source_path)
     
-    aug_df = generate_synthetic_data(df, augmentations=20)
+    aug_df = generate_synthetic_data(df, augmentations_per_type=20)
     
     # Validate strictly follows DTW_FEATURE_ORDER
     print("Columns:", [c for c in aug_df.columns if c in DTW_FEATURE_ORDER])
     
-    # Save unnormalized (normalization happens at runtime)
+    # Save unnormalized
     aug_df.to_parquet(output_path, index=False)
     print(f"Saved synthetic enriched dataset to: {output_path}")
 
