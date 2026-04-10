@@ -70,11 +70,16 @@ app.include_router(kafka_router)
 app.include_router(exercise_router)
 app.include_router(consent_router)
 
-# ── CORS ─────────────────────────────────────────────────────
-# TODO: Restrict origins before production deployment
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "capacitor://localhost",
+        "http://localhost",
+        "http://localhost:8080",
+        "http://localhost:8081",
+        "http://localhost:3000",
+        "boxing-app://auth",
+    ],
     allow_credentials=True,
     allow_headers=["*"],
     allow_methods=["*"],
