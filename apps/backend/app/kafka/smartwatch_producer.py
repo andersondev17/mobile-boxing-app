@@ -44,36 +44,33 @@ class SmartWatchProducer:
         return datetime.now(timezone.utc).isoformat()
 
     def gen_sample(self, device_id="dev-01", user_id="user-1", seq=0):
-        """Generate a single smartwatch telemetry sample."""
-        hr = random.randint(55, 110)
+        """Generate a single smartwatch telemetry sample with Load/Fatigue metrics."""
+        hr = random.randint(60, 160)
+        # Derived metrics
+        hr_variability = random.randint(40, 80)
+        fatigue_index = round(random.uniform(0.1, 0.9), 2)
+        training_load = round(random.uniform(5.0, 50.0), 1)
+        recovery_score = random.randint(10, 100)
+
         return {
             "device_id": device_id,
             "user_id": user_id,
-            "manufacturer": "AcmeWatch",
-            "model": "AcmeX-2",
-            "firmware_version": "1.4.7",
             "timestamp": self._now_iso(),
             "telemetry": {
-                "battery": {
-                    "level": random.randint(10, 100),
-                    "charging": random.choice([False, False, True]),
-                },
                 "heart_rate": {
                     "value": hr,
                     "unit": "bpm",
-                    "confidence": round(random.uniform(0.8, 0.99), 2),
+                    "hr_variability": hr_variability
                 },
-                "steps": {
-                    "total": random.randint(0, 15000),
-                    "delta": random.randint(0, 20),
-                },
-                "calories": {
-                    "total_kcal": round(random.uniform(100, 900), 1),
+                "load_metrics": {
+                    "fatigue_index": fatigue_index,
+                    "training_load": training_load,
+                    "recovery_score": recovery_score
                 },
                 "activity": {
-                    "type": random.choice(["idle", "walking", "running", "boxing"]),
-                    "confidence": round(random.uniform(0.5, 1.0), 2),
-                },
+                    "type": "boxing" if hr > 120 else "idle",
+                    "confidence": 0.95
+                }
             },
             "sequence": seq,
         }

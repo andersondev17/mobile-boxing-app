@@ -10,6 +10,7 @@ export const exercises = sqliteTable('exercises', {
   id: text('id').primaryKey().$defaultFn(() => uuid.v4() as string),
   title: text('title').notNull(),
   poster_url: text('poster_url').notNull(),
+  video_url: text('video_url'),
   category: text('category').notNull(),
   difficulty: text('difficulty').notNull().default('beginner'),
   duration_min: integer('duration_min').notNull(),

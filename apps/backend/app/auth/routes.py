@@ -10,7 +10,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import RedirectResponse
 
-from models import User, AuthCode
+from models.postgres import User
+from models.model import AuthCode
+from config.database import get_pg_session
+from sqlalchemy.ext.asyncio import AsyncSession
 from schemas import Token, GoogleUser, settings, UserCreate, UserBase
 from auth import (
     get_current_user,
@@ -28,9 +31,9 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 # ─── Local Login ─────────────────────────────────────────────
 
 @router.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_pg_session)):
     """Authenticate with email/password and receive JWT tokens."""
-    tokens = await login_user(form_data.username, form_data.password)
+    tokens = await login_user(form_data.username, form_data.password, db)
     if not tokens:
         raise HTTPException(400, "Invalid credentials")
     return tokens
@@ -44,9 +47,9 @@ def refresh_endpoint(refresh_token: str = Body(..., embed=True)):
 
 
 @router.post("/register", response_model=UserBase)
-async def register(user: UserCreate):
+async def register(user: UserCreate, db: AsyncSession = Depends(get_pg_session)):
     """Register a new user with email/password."""
-    new_user = await register_user(user)
+    new_user = await register_user(user, db)
     if not new_user:
         raise HTTPException(400, "Email already registered")
     return UserBase(
@@ -104,7 +107,7 @@ def login_with_google(
 
 
 @router.get("/callback")
-async def google_callback(request: Request):
+async def google_callback(request: Request, db: AsyncSession = Depends(get_pg_session)):
     """Handle Google OAuth callback and redirect to mobile app."""
     code = request.query_params.get("code")
     state = request.query_params.get("state")
@@ -115,7 +118,7 @@ async def google_callback(request: Request):
     user_info = await get_google_user_info(code)
     google_user = GoogleUser(**user_info)
 
-    user = await get_or_create_google_user(google_user)
+    user = await get_or_create_google_user(google_user, db)
     auth_code = await create_auth_code(user)
 
     return RedirectResponse(
@@ -127,7 +130,7 @@ async def google_callback(request: Request):
 # ─── Exchange Code ───────────────────────────────────────────
 
 @router.post("/exchange-token")
-async def exchange_token(auth_code: str = Body(..., embed=True)):
+async def exchange_token(auth_code: str = Body(..., embed=True), db: AsyncSession = Depends(get_pg_session)):
     """Exchange a temporary auth code for JWT tokens."""
     record = await AuthCode.find_one(AuthCode.code == auth_code)
 
@@ -136,7 +139,9 @@ async def exchange_token(auth_code: str = Body(..., embed=True)):
             await record.delete()
         raise HTTPException(400, "Invalid or expired auth code")
 
-    user = await User.find_one(User.email == record.user_email)
+    result = await db.execute(select(User).where(User.email == record.user_email))
+    user = result.scalar_one_or_none()
+    
     if not user:
         raise HTTPException(404, "User not found")
 
@@ -153,11 +158,12 @@ async def exchange_token(auth_code: str = Body(..., embed=True)):
 async def mobile_token_exchange(
     code: str = Body(...),
     code_verifier: str = Body(...),
+    db: AsyncSession = Depends(get_pg_session)
 ):
     """Exchange a Google authorization code + PKCE verifier for JWT tokens."""
     user_info = await get_google_user_info_pkce(code, code_verifier)
     google_user = GoogleUser(**user_info)
-    user = await get_or_create_google_user(google_user)
+    user = await get_or_create_google_user(google_user, db)
 
     payload = {"sub": str(user.id), "email": user.email, "name": user.name, "role": "user"}
     access = create_token(payload)

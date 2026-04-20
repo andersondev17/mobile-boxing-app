@@ -20,6 +20,10 @@ class UserBase(BaseModel):
     name: str
     role: Optional[str] = None
     email_verified: bool = False
+    birth_date: Optional[datetime] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    sex: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:

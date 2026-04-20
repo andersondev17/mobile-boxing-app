@@ -6,6 +6,7 @@ from typing import Union
 
 from .feature_extractor import extract_features
 from .feedback_engine import FeedbackEngine
+from .frame_quality import validate_frame, smooth_features
 
 # Named landmark keys expected by the dict-based input path.
 _NAMED_TO_INDEX: dict[str, int] = {
@@ -274,13 +275,11 @@ class BoxingJabTracker:
             self.frame_idx += 1
             return None, None, False
 
-        # ── 2. Validate minimum required indices ────────────────────────
-        # extract_features needs indices 11-16 (shoulders, elbows, wrists)
-        # and 23-24 (hips).  Torso-lock check needs 11, 12, 23, 24.
-        required_indices = {11, 12, 13, 14, 15, 16, 23, 24}
-        if any(proxies[i] is None for i in required_indices):
+        # ── 2. Quality gate ──────────────────────────────────
+        # Hard discard: any required landmark below visibility threshold
+        if not validate_frame(proxies):
             self.frame_idx += 1
-            return None, None, False
+            return None, "UBICA TU CUERPO EN EL CUADRO", False
 
         # ── 3. Feature extraction ───────────────────────────────────────
         features = extract_features(proxies, prev_features=self.prev_features)
@@ -288,11 +287,10 @@ class BoxingJabTracker:
             self.frame_idx += 1
             return None, None, False
 
-        # Save raw biomechanical features for next-frame smoothing (before
-        # motion augmentation adds hand_speed / frame_index keys).
+        # ── 4. Jitter smoothing + motion augmentation ──────────────────
+        # Smooth raw features before augmentation so velocities are stable
+        features = smooth_features(features, self.prev_features)
         self.prev_features = features
-
-        # ── 4. Motion augmentation ──────────────────────────────────────
         features = self._augment_with_motion(proxies, features)
 
         # ── 5. Jab tracking ─────────────────────────────────────────────

@@ -10,6 +10,15 @@ motor==3.6.0
 beanie==1.27.0
 pymongo==4.10.1
 
+# ── Postgres ──────────────────────────────────────────────────
+sqlalchemy==2.0.21
+asyncpg==0.28.0
+alembic==1.13.2
+psycopg2-binary==2.9.9
+
+# ── Spark ─────────────────────────────────────────────────────
+pyspark==3.5.0
+
 # ── Redis ────────────────────────────────────────────────────
 redis==5.0.4
 
@@ -41,6 +50,7 @@ scikit-learn==1.5.2
 
 # ── Utilities ────────────────────────────────────────────────
 python-dotenv==1.2.1
+sentry-sdk[fastapi]==2.1.1
 typing_extensions==4.15.0
 annotated-types==0.7.0
 anyio==4.11.0

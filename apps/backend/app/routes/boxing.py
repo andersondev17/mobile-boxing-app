@@ -75,9 +75,136 @@ async def load_baseline(file: UploadFile = File(...)):
     """Upload and load a baseline parquet file."""
     try:
         result = boxing_service.load_baseline(file.filename, file.file)
+        # Keep analyzer in sync with boxing_service baseline
+        from ml_service.analyzer import boxing_analyzer
+        if boxing_service.get_baseline() is not None:
+            boxing_analyzer.set_baseline(boxing_service.get_baseline())
         return BaselineResponse(**result.__dict__)
     except Exception as exc:
         logger.exception("Error al cargar baseline: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/analyze-video")
+async def analyze_video(
+    file: UploadFile = File(...),
+    user_id: Optional[str] = Query(None, description="User UUID (optional for anonymous testing)"),
+):
+    """Full pipeline video analysis — web testing endpoint.
+
+    Accepts an mp4/mov file, runs it through the full ML pipeline
+    (MediaPipe → features → quality filter → DTW), and returns
+    per-frame scores, aggregated stats, and coaching feedback.
+
+    Results are persisted to the test_runs table in PostgreSQL.
+    """
+    import json as _json
+    from ml_service.analyzer import boxing_analyzer
+    from config.database import get_pg_session
+    from models.postgres import TestRun
+
+    tmp_path = boxing_service.temp_dir / f"web_{uuid.uuid4().hex}_{file.filename}"
+    try:
+        tmp_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(tmp_path, "wb") as buf:
+            shutil.copyfileobj(file.file, buf)
+
+        # Sync baseline to analyzer
+        baseline = boxing_service.get_baseline()
+        if baseline is not None:
+            boxing_analyzer.set_baseline(baseline)
+
+        # Run analysis in a thread pool to avoid blocking the event loop
+        import asyncio
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: boxing_analyzer.analyze_video(tmp_path, file.filename or ""),
+        )
+
+        # Persist test run (best-effort — don't fail the response if DB is down)
+        try:
+            pg_session_gen = get_pg_session()
+            pg_session = await pg_session_gen.__anext__()
+            run = TestRun(
+                id=uuid.uuid4(),
+                user_id=uuid.UUID(user_id) if user_id else None,
+                video_name=result.video_name,
+                total_frames=result.total_frames,
+                scored_frames=result.scored_frames,
+                avg_score=result.avg_score,
+                min_score=result.min_score,
+                max_score=result.max_score,
+                punch_type=result.punch_type,
+                feedback=_json.dumps(result.feedback),
+                processing_ms=result.processing_ms,
+            )
+            pg_session.add(run)
+            await pg_session.commit()
+            run_id = str(run.id)
+            await pg_session_gen.aclose()
+        except Exception as db_exc:
+            logger.warning("test_run persistence failed (non-fatal): %s", db_exc)
+            run_id = None
+
+        return {
+            "run_id": run_id,
+            "video_name": result.video_name,
+            "total_frames": result.total_frames,
+            "scored_frames": result.scored_frames,
+            "avg_score": result.avg_score,
+            "min_score": result.min_score,
+            "max_score": result.max_score,
+            "frame_scores": [
+                {
+                    "frame_index": r.frame_index,
+                    "dtw_score": r.dtw_score,
+                    "label": r.qualitative_label,
+                }
+                for r in result.frame_results
+            ],
+            "baseline_curve": result.baseline_curve,
+            "feedback": result.feedback,
+            "punch_type": result.punch_type,
+            "processing_ms": result.processing_ms,
+        }
+
+    except Exception as exc:
+        logger.exception("Error in analyze_video: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
+
+
+@router.get("/test-runs")
+async def list_test_runs(limit: int = Query(20, le=100)):
+    """Return the most recent test runs from the web UI."""
+    from config.database import get_pg_session
+    from models.postgres import TestRun
+    from sqlalchemy import select
+
+    try:
+        pg_gen = get_pg_session()
+        pg = await pg_gen.__anext__()
+        rows = (await pg.execute(
+            select(TestRun).order_by(TestRun.created_at.desc()).limit(limit)
+        )).scalars().all()
+        await pg_gen.aclose()
+        return [
+            {
+                "id": str(r.id),
+                "video_name": r.video_name,
+                "avg_score": r.avg_score,
+                "min_score": r.min_score,
+                "max_score": r.max_score,
+                "scored_frames": r.scored_frames,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in rows
+        ]
+    except Exception as exc:
+        logger.exception("Error listing test runs: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
 
 
@@ -215,14 +342,15 @@ async def jab_websocket(websocket: WebSocket):
                 if user_id and not consent_verified:
                     consent = await Consent.find_one(
                         Consent.user_id == user_id,
-                        Consent.consent_type == "biometric_data",
-                        Consent.granted == True,  # noqa: E712
+                        Consent.consent_type == "biometric",
+                        Consent.granted == True,
                     )
                     if not consent:
                         await websocket.send_json(
                             {
                                 "error": "consent_required",
-                                "consent_type": "biometric_data",
+                                "consent_type": "biometric",
+                                "message": "Debes aceptar el consentimiento biométrico (Ley 1581) para procesar landmarks."
                             }
                         )
                         continue
@@ -257,15 +385,19 @@ async def jab_websocket(websocket: WebSocket):
                         effective_uid, effective_session, strict_features
                     )
                     if window is not None:
-                        # compute DTW score against baseline
+                        # 1. Compute smart coaching feedback for the window
+                        smart_feedback = ws_tracker.feedback_engine.analyze_window(window)
+                        if smart_feedback:
+                            feedback_msg = smart_feedback
+                            
+                        # 2. Compute DTW score against all loaded baselines (Phase 3: Multi-baseline)
+                        # For now, we take head(30) but in production we'd iterate over pro baselines
                         if baseline_ref is not None and not baseline_ref.empty:
                             ref_window = baseline_ref.head(30).to_dict('records')
                             dtw_score = dtw_scorer.score_window(window, ref_window)
                             qualitative_label = dtw_scorer.get_qualitative_label(dtw_score)
                         else:
                             dtw_score = 0.0
-                    else:
-                        pass
 
                         # punch_classifier falls back to ("null", 1.0) when no
                         # trained model file exists — safe cold-start behavior.

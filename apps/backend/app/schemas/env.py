@@ -10,12 +10,32 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # ── Application Modes ────────────────────────────────────
-    # Modes: "dev_mock" or "local_real"
+    # Modes:
+    #   dev_mock   → mocks for Mongo, Postgres, Redis (CI/CD, no infra needed)
+    #   local_real → all real services required (Docker Compose)
+    #   ml_only    → only ML pipeline active, no Kafka/Spark
+    #   no_kafka   → real DBs but Kafka disabled
+    #   full       → all services (production-equivalent)
     ENV_MODE: str = "local_real"
+
+    # ── Observability ─────────────────────────────────────────
+    SENTRY_DSN: str = ""
+    LOG_LEVEL: str = "INFO"  # DEBUG, INFO, WARNING, ERROR
 
     # ── MongoDB ──────────────────────────────────────────────
     MONGO_URI: str = "mongodb://admin:admin123@localhost:27017/boxing_app?authSource=admin"
     MONGO_DB: str = "boxing_app"
+
+    # ── Postgres (Auth) ──────────────────────────────────────
+    POSTGRES_USER: str = "admin"
+    POSTGRES_PASSWORD: str = "admin123"
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_DB: str = "boxing_auth"
+
+    @property
+    def ASYNC_POSTGRES_URI(self) -> str:
+        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     # ── Redis ────────────────────────────────────────────────
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -50,6 +70,15 @@ class Settings(BaseSettings):
     # ── Application ──────────────────────────────────────────
     FRONTEND_URL: str = "http://localhost:3000"
     MOBILE_DEEP_LINK_SCHEME: str = "gymshock://"
+
+    @property
+    def kafka_enabled(self) -> bool:
+        """Kafka is active only in full and local_real modes."""
+        return self.ENV_MODE in ("full", "local_real")
+
+    @property
+    def mock_allowed(self) -> bool:
+        return self.ENV_MODE == "dev_mock"
 
     class Config:
         env_file = "../.env"

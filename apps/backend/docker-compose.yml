@@ -54,33 +54,40 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.6.0
     container_name: boxing-kafka
-    hostname: kafka
     restart: unless-stopped
-    environment:
-      # KRaft single-node (no Zookeeper)
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
-      CLUSTER_ID: "boxing-app-local-dev-001"
-      # Listeners
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:29093,EXTERNAL://0.0.0.0:19092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:19092
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      # Minimal replication for single-node
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_NUM_PARTITIONS: 3
-      # Memory limits for 8GB dev machine
-      KAFKA_HEAP_OPTS: "-Xmx512M -Xms256M"
     ports:
       - "9092:9092"
       - "19092:19092"
-    volumes:
-      - kafka_data:/var/lib/kafka/data
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:19092
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      CLUSTER_ID: MkQkDlCXGTe-6QvfyMUHWQ
+    networks:
+      - boxing_network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 | grep ApiVersion || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop:latest
+    container_name: boxing-kafdrop
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      KAFKA_BROKERCONNECT: kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
     networks:
       - boxing_network
 
@@ -98,15 +105,27 @@ services:
       redis:
         condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy
     networks:
       - boxing_network
     volumes:
       - ./app:/app
 
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+    container_name: boxing-web
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    networks:
+      - boxing_network
+    depends_on:
+      - backend
+
 volumes:
   mongodb_data:
-  kafka_data:
 
 networks:
   boxing_network:

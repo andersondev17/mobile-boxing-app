@@ -90,7 +90,7 @@ class BoxingAnalyticsService:
         output_dir: Path | str = Path("videos/output"),
         processed_dir: Path | str = Path("processed_videos"),
         upload_dir: Path | str = Path("uploads"),
-        baseline_path: Path | str = Path("baseline.parquet"),
+        baseline_path: Path | str = Path("baseline_final.parquet"),
         pro_videos_dir: Path | str = Path("videos_profesionales"),
     ):
         self.temp_dir = Path(temp_dir)

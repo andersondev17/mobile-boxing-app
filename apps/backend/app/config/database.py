@@ -9,12 +9,15 @@ classes on application startup.
 import logging
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
 from schemas.env import settings
 
 logger = logging.getLogger(__name__)
 
 _client: AsyncIOMotorClient | None = None
+_pg_engine = None
+_AsyncSessionLocal = None
 
 
 async def init_db() -> None:
@@ -23,19 +26,18 @@ async def init_db() -> None:
     Called once during application startup via the lifespan handler.
     Registers all Beanie Document subclasses for the configured database.
     """
-    global _client
-
-    from models import (
-        User,
+    global _client, _pg_engine, _AsyncSessionLocal
+    
+    # ── MongoDB Initialization ───────────────────────────────
+    from models.model import (
         Role,
         Training,
         Exercise,
         Category,
         Difficulty,
-        BoxingSession,
-        Consent,
         AuthCode,
     )
+    from models.boxing import BoxingSession, Consent
 
     allow_mock = (settings.ENV_MODE == "dev_mock")
     
@@ -58,17 +60,37 @@ async def init_db() -> None:
     await init_beanie(
         database=db,
         document_models=[
-            User,
             Role,
             Training,
             Exercise,
             Category,
             Difficulty,
+            AuthCode,
             BoxingSession,
             Consent,
-            AuthCode,
         ],
     )
+
+    # ── Postgres Initialization ──────────────────────────────
+    try:
+        _pg_engine = create_async_engine(
+            settings.ASYNC_POSTGRES_URI,
+            echo=False,
+            pool_pre_ping=True,  # detect stale connections
+        )
+        _AsyncSessionLocal = async_sessionmaker(
+            _pg_engine, expire_on_commit=False, class_=AsyncSession
+        )
+        # ⚠️ Schema is managed by Alembic — do NOT call create_all here.
+        # Run: alembic upgrade head (before first startup)
+        logger.info("Postgres engine initialized (schema via Alembic).")
+    except Exception as exc:
+        if allow_mock:
+            logger.warning("⚠️ Postgres connection failed (dev_mock): %s", exc)
+        else:
+            logger.error("❌ CRITICAL: Postgres connection failed: %s", exc)
+            raise exc
+
 
 
 async def close_db() -> None:
@@ -92,3 +114,14 @@ def get_db():
     if _client is None:
         raise RuntimeError("Database not initialized. Call init_db() first.")
     return _client[settings.MONGO_DB]
+
+
+async def get_pg_session():
+    """Async generator for Postgres sessions (FastAPI dependency)."""
+    if _AsyncSessionLocal is None:
+        raise RuntimeError("Postgres not initialized. Call init_db() first.")
+    async with _AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()

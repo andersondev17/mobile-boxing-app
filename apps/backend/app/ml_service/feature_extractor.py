@@ -47,11 +47,12 @@ def extract_features(landmarks, prev_features: dict | None = None) -> dict | Non
         Dict with 8 float features, or ``None`` if the landmarks list is too
         short to extract any meaningful data.
     """
-    # Need at least up to index 24 (right hip).
-    if landmarks is None or len(landmarks) < 25:
+    # Need at least up to index 28 (right knee).
+    if landmarks is None or len(landmarks) < 29:
         return None
 
-    # Unpack the eight landmarks used across all features.
+    # Unpack landmarks
+    nose       = landmarks[0]
     shoulder_l = landmarks[11]   # left shoulder
     shoulder_r = landmarks[12]   # right shoulder
     elbow_l    = landmarks[13]   # left elbow
@@ -60,83 +61,66 @@ def extract_features(landmarks, prev_features: dict | None = None) -> dict | Non
     wrist_r    = landmarks[16]   # right wrist
     hip_l      = landmarks[23]   # left hip
     hip_r      = landmarks[24]   # right hip
+    knee_l     = landmarks[25]   # left knee
+    knee_r     = landmarks[26]   # right knee
+    ankle_l    = landmarks[27]   # left ankle
+    ankle_r    = landmarks[28]   # right ankle
 
-    # ── elbow_angle_left ─────────────────────────────────────────────────
-    if _vis_ok(shoulder_l) and _vis_ok(elbow_l) and _vis_ok(wrist_l):
-        elbow_angle_left = extract_angle(shoulder_l, elbow_l, wrist_l)
+    # ── elbow_angle_left/right (existing) ────────────────────────────────
+    elbow_angle_left = extract_angle(shoulder_l, elbow_l, wrist_l) if _vis_ok(shoulder_l) and _vis_ok(elbow_l) and _vis_ok(wrist_l) else 0.0
+    elbow_angle_right = extract_angle(shoulder_r, elbow_r, wrist_r) if _vis_ok(shoulder_r) and _vis_ok(elbow_r) and _vis_ok(wrist_r) else 0.0
+
+    # ── forward_extent_left/right (existing) ──────────────────────────────
+    forward_extent_left = float(wrist_l.x - shoulder_l.x) if _vis_ok(wrist_l) and _vis_ok(shoulder_l) else 0.0
+    forward_extent_right = float(shoulder_r.x - wrist_r.x) if _vis_ok(wrist_r) and _vis_ok(shoulder_r) else 0.0
+
+    # ── torso_rotation (CRITICAL) ─────────────────────────────────────────
+    # Relative rotation between shoulder line and hip line in the Z-plane.
+    if all(map(_vis_ok, [shoulder_l, shoulder_r, hip_l, hip_r])):
+        shoulder_z = float(shoulder_r.z - shoulder_l.z)
+        hip_z = float(hip_r.z - hip_l.z)
+        torso_rotation = abs(shoulder_z - hip_z)
     else:
-        elbow_angle_left = 0.0
+        torso_rotation = 0.0
 
-    # ── elbow_angle_right ────────────────────────────────────────────────
-    if _vis_ok(shoulder_r) and _vis_ok(elbow_r) and _vis_ok(wrist_r):
-        elbow_angle_right = extract_angle(shoulder_r, elbow_r, wrist_r)
+    # ── vertical_displacement ────────────────────────────────────────────
+    # Tracking the height (y) of the head relative to the start or hips.
+    if _vis_ok(nose) and _vis_ok(hip_l) and _vis_ok(hip_r):
+        hip_center_y = (hip_l.y + hip_r.y) / 2.0
+        vertical_displacement = float(hip_center_y - nose.y)
     else:
-        elbow_angle_right = 0.0
+        vertical_displacement = 0.0
 
-    # ── forward_extent_left ──────────────────────────────────────────────
-    # Positive value = wrist is in front of (to the right of) the shoulder.
-    if _vis_ok(wrist_l) and _vis_ok(shoulder_l):
-        forward_extent_left = float(wrist_l.x - shoulder_l.x)
+    # ── knee_flexion (left) ──────────────────────────────────────────────
+    if all(map(_vis_ok, [hip_l, knee_l, ankle_l])):
+        knee_flexion = extract_angle(hip_l, knee_l, ankle_l)
     else:
-        forward_extent_left = 0.0
+        knee_flexion = 180.0 # fully extended default
 
-    # ── forward_extent_right ─────────────────────────────────────────────
-    # Sign reversed: right cross extends to the *left* in MediaPipe coords.
-    if _vis_ok(wrist_r) and _vis_ok(shoulder_r):
-        forward_extent_right = float(shoulder_r.x - wrist_r.x)
+    # ── weight_transfer ──────────────────────────────────────────────────
+    # Horizontal (x) offset of hip center relative to the midpoint of ankles.
+    if all(map(_vis_ok, [hip_l, hip_r, ankle_l, ankle_r])):
+        hip_cx = (hip_l.x + hip_r.x) / 2.0
+        ankle_cx = (ankle_l.x + ankle_r.x) / 2.0
+        weight_transfer = float(hip_cx - ankle_cx)
     else:
-        forward_extent_right = 0.0
+        weight_transfer = 0.0
 
-    # ── shoulder_rotation ────────────────────────────────────────────────
-    # Depth difference between the two shoulders captures axial rotation.
-    if _vis_ok(shoulder_r) and _vis_ok(shoulder_l):
-        raw_shoulder_rot = abs(float(shoulder_r.z) - float(shoulder_l.z))
-    else:
-        raw_shoulder_rot = 0.0
+    # ── Temporal Smoothing ───────────────────────────────────────────────
+    def _smooth(val, key):
+        if prev_features and key in prev_features:
+            return 0.7 * val + 0.3 * float(prev_features[key])
+        return val
 
-    if prev_features is not None and "shoulder_rotation" in prev_features:
-        shoulder_rotation = 0.7 * raw_shoulder_rot + 0.3 * float(prev_features["shoulder_rotation"])
-    else:
-        shoulder_rotation = raw_shoulder_rot
-
-    # ── hip_rotation ─────────────────────────────────────────────────────
-    if _vis_ok(hip_r) and _vis_ok(hip_l):
-        raw_hip_rot = abs(float(hip_r.z) - float(hip_l.z))
-    else:
-        raw_hip_rot = 0.0
-
-    if prev_features is not None and "hip_rotation" in prev_features:
-        hip_rotation = 0.7 * raw_hip_rot + 0.3 * float(prev_features["hip_rotation"])
-    else:
-        hip_rotation = raw_hip_rot
-
-    # ── guard_distance ───────────────────────────────────────────────────
-    # 3-D Euclidean distance between the two wrists (how wide the guard is).
-    if _vis_ok(wrist_l) and _vis_ok(wrist_r):
-        guard_distance = float(np.sqrt(
-            (wrist_l.x - wrist_r.x) ** 2
-            + (wrist_l.y - wrist_r.y) ** 2
-            + (wrist_l.z - wrist_r.z) ** 2
-        ))
-    else:
-        guard_distance = 0.0
-
-    # ── wrist_lateral_displacement ───────────────────────────────────────
-    # Absolute vertical (y) offset of left wrist from left shoulder.
-    # In MediaPipe coords y increases downward, so a raised elbow/wrist gives
-    # a small (or negative) difference — useful for hook detection.
-    if _vis_ok(wrist_l) and _vis_ok(shoulder_l):
-        wrist_lateral_displacement = abs(float(wrist_l.y) - float(shoulder_l.y))
-    else:
-        wrist_lateral_displacement = 0.0
-
-    return {
+    features = {
         "elbow_angle_left": float(elbow_angle_left),
         "elbow_angle_right": float(elbow_angle_right),
         "forward_extent_left": float(forward_extent_left),
         "forward_extent_right": float(forward_extent_right),
-        "shoulder_rotation": float(shoulder_rotation),
-        "hip_rotation": float(hip_rotation),
-        "guard_distance": float(guard_distance),
-        "wrist_lateral_displacement": float(wrist_lateral_displacement),
+        "torso_rotation": _smooth(float(torso_rotation), "torso_rotation"),
+        "vertical_displacement": _smooth(float(vertical_displacement), "vertical_displacement"),
+        "knee_flexion": _smooth(float(knee_flexion), "knee_flexion"),
+        "weight_transfer": _smooth(float(weight_transfer), "weight_transfer"),
     }
+
+    return features
