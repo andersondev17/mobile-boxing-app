@@ -8,7 +8,7 @@ pydantic_core==2.41.4
 # ── MongoDB ──────────────────────────────────────────────────
 motor==3.6.0
 beanie==1.27.0
-pymongo==4.10.1
+pymongo==4.9.2
 
 # ── Postgres ──────────────────────────────────────────────────
 sqlalchemy==2.0.21
@@ -16,11 +16,8 @@ asyncpg==0.28.0
 alembic==1.13.2
 psycopg2-binary==2.9.9
 
-# ── Spark ─────────────────────────────────────────────────────
-pyspark==3.5.0
-
 # ── Redis ────────────────────────────────────────────────────
-redis==5.0.4
+redis[hiredis]==5.0.4
 
 # ── Kafka ────────────────────────────────────────────────────
 confluent-kafka
@@ -37,8 +34,8 @@ python-multipart==0.0.20
 httpx==0.28.1
 
 # ── ML (Baseline Builder — offline only) ─────────────────────
-mediapipe==0.10.21
-opencv-python==4.11.0.86
+mediapipe==0.10.14
+opencv-python==4.8.1.78
 numpy==1.26.4
 pandas==2.2.3
 pyarrow==18.1.0

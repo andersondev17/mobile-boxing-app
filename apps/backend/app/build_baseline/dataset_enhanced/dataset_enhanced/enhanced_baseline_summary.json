@@ -1,0 +1,68 @@
+{
+  "generation_summary": {
+    "total_punch_types": 4,
+    "total_videos": 28,
+    "enhanced_baselines_generated": 12,
+    "enhancement_features": [
+      "Biomechanically realistic patterns",
+      "Multiple quality levels (excellent/good/acceptable)",
+      "Realistic variation and noise",
+      "Physical constraints enforcement",
+      "Enhanced feature completeness"
+    ]
+  },
+  "punch_type_details": {
+    "cross": {
+      "source_videos": 4,
+      "enhanced_baselines": 3,
+      "video_files": [
+        "cross3.mp4",
+        "cross4.mp4",
+        "cross6.mp4",
+        "cross7.mp4"
+      ]
+    },
+    "hook": {
+      "source_videos": 5,
+      "enhanced_baselines": 3,
+      "video_files": [
+        "hook1.mp4",
+        "hook11.mp4",
+        "hook2.mp4",
+        "hook3.mp4",
+        "hook8.mp4"
+      ]
+    },
+    "jab": {
+      "source_videos": 13,
+      "enhanced_baselines": 3,
+      "video_files": [
+        "boxing4.mp4",
+        "Jab.mp4",
+        "jab1.mp4",
+        "jab11.mp4",
+        "jab12.mp4",
+        "jab2.mp4",
+        "jab3.mp4",
+        "jab4.mp4",
+        "jab5.mp4",
+        "jab6.mp4",
+        "jab8.mp4",
+        "light jab.mp4",
+        "strong jab.mp4"
+      ]
+    },
+    "uppercut": {
+      "source_videos": 6,
+      "enhanced_baselines": 3,
+      "video_files": [
+        "uppercut11.mp4",
+        "uppercut12.mp4",
+        "uppercut4.mp4",
+        "uppercut7.mp4",
+        "uppercut8.mp4",
+        "uppercut9.mp4"
+      ]
+    }
+  }
+}

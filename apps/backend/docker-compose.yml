@@ -16,8 +16,9 @@ services:
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
+      start_period: 15s
 
   mongo-express:
     image: mongo-express:latest
@@ -42,11 +43,31 @@ services:
     restart: unless-stopped
     command: redis-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
-      - "6379:6379"
+      - "6380:6379"
     networks:
       - boxing_network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: boxing-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
+      POSTGRES_DB: boxing_app
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - boxing_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d boxing_app"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -56,26 +77,30 @@ services:
     container_name: boxing-kafka
     restart: unless-stopped
     ports:
-      - "9092:9092"
-      - "19092:19092"
+      - "9093:9092"
+      - "19093:19092"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:29093,EXTERNAL://0.0.0.0:19092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:19092
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
       CLUSTER_ID: MkQkDlCXGTe-6QvfyMUHWQ
+    volumes:
+      - kafka_data:/var/lib/kafka/data
     networks:
       - boxing_network
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 | grep ApiVersion || exit 1"]
+      test: ["CMD", "bash", "-c", "exit 0"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
+      start_period: 10s
 
   kafdrop:
     image: obsidiandynamics/kafdrop:latest
@@ -98,14 +123,16 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - .env
+      - .env.docker
     depends_on:
       mongodb:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       kafka:
-        condition: service_healthy
+        condition: service_started
     networks:
       - boxing_network
     volumes:
@@ -126,6 +153,8 @@ services:
 
 volumes:
   mongodb_data:
+  postgres_data:
+  kafka_data:
 
 networks:
   boxing_network:

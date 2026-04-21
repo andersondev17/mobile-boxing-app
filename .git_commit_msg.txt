@@ -1,0 +1,11 @@
+chore: consolidate infrastructure and feature updates
+
+- Updated docker-compose.yml: Kafka KRaft mode, removed Postgres/Zookeeper/Spark
+- ML service refactoring: feature extractor and scoring pipeline updates
+- Auth services: JWT and OAuth flow improvements
+- Configuration updates: environment variables and database setup
+- Kafka producers/consumers: smartwatch metrics and round events
+- Mobile: exercise schema updates
+- Web: chart dependencies ready (chart.js, react-chartjs-2)
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>

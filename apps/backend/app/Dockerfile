@@ -13,11 +13,9 @@ RUN apt-get update && apt-get install -y \
 
 COPY requirements.txt .
 
-RUN python -m venv venv
-
-RUN /bin/bash -c "source venv/bin/activate"
-
-RUN pip install -r requirements.txt
+# Instalar directamente en el Python del sistema (más simple para Docker)
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
 
 COPY . .
 

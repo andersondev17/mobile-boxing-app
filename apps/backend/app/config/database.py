@@ -77,6 +77,9 @@ async def init_db() -> None:
             settings.ASYNC_POSTGRES_URI,
             echo=False,
             pool_pre_ping=True,  # detect stale connections
+            pool_size=20,  # Connection pool size
+            max_overflow=30,  # Max overflow connections
+            pool_recycle=3600,  # Recycle connections after 1 hour
         )
         _AsyncSessionLocal = async_sessionmaker(
             _pg_engine, expire_on_commit=False, class_=AsyncSession

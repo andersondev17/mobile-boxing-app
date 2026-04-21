@@ -25,6 +25,8 @@ from schemas import (
     BoxingStatusResponse,
     CleanupResponse,
     SessionSaveResponse,
+    MultiBaselineRequest,
+    MultiBaselineResponse,
 )
 
 # Module-level singletons — created once, reused across all WS connections.
@@ -85,10 +87,28 @@ async def load_baseline(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
+def detect_punch_type(filename: str) -> str:
+    """Detect punch type from filename."""
+    if not filename:
+        return "jab"  # default
+    
+    filename_lower = filename.lower()
+    if "jab" in filename_lower:
+        return "jab"
+    elif "cross" in filename_lower:
+        return "cross"
+    elif "gancho" in filename_lower or "hook" in filename_lower:
+        return "hook"
+    elif "uppercut" in filename_lower:
+        return "uppercut"
+    else:
+        return "jab"  # default
+
 @router.post("/analyze-video")
 async def analyze_video(
     file: UploadFile = File(...),
     user_id: Optional[str] = Query(None, description="User UUID (optional for anonymous testing)"),
+    max_size: int = Query(50 * 1024 * 1024, description="Maximum file size (50MB)"),
 ):
     """Full pipeline video analysis — web testing endpoint.
 
@@ -96,31 +116,57 @@ async def analyze_video(
     (MediaPipe → features → quality filter → DTW), and returns
     per-frame scores, aggregated stats, and coaching feedback.
 
-    Results are persisted to the test_runs table in PostgreSQL.
+    Enhanced with punch type detection and baseline matching.
     """
     import json as _json
+    import pandas as pd
     from ml_service.analyzer import boxing_analyzer
     from config.database import get_pg_session
     from models.postgres import TestRun
 
+    # Detect punch type from filename
+    punch_type = detect_punch_type(file.filename)
+    logger.info(f"🥊 Detected punch type: {punch_type} from filename: {file.filename}")
+
+    # Validate file size before processing
+    if max_size and file.size and file.size > max_size:
+        raise HTTPException(
+            status_code=413, 
+            detail=f"File too large. Maximum size is {max_size // (1024*1024)}MB"
+        )
+
     tmp_path = boxing_service.temp_dir / f"web_{uuid.uuid4().hex}_{file.filename}"
     try:
         tmp_path.parent.mkdir(parents=True, exist_ok=True)
+        # Stream file to disk in chunks to avoid memory issues
         with open(tmp_path, "wb") as buf:
-            shutil.copyfileobj(file.file, buf)
+            for chunk in file.file.iter_chunks(chunk_size=8192):  # 8KB chunks
+                buf.write(chunk)
 
-        # Sync baseline to analyzer
-        baseline = boxing_service.get_baseline()
-        if baseline is not None:
-            boxing_analyzer.set_baseline(baseline)
+        # Load appropriate baseline for punch type
+        baseline_path = Path(__file__).parent / "build_baseline" / "dataset" / punch_type
+        baseline_file = baseline_path / f"{punch_type}_v1.parquet"
+        
+        if baseline_file.exists():
+            logger.info(f"📂 Loading {punch_type} baseline from: {baseline_file}")
+            baseline_df = pd.read_parquet(baseline_file)
+            boxing_analyzer.set_baseline(baseline_df)
+            baseline_loaded = True
+        else:
+            logger.warning(f"⚠️ No {punch_type} baseline found at: {baseline_file}")
+            baseline_loaded = False
 
         # Run analysis in a thread pool to avoid blocking the event loop
         import asyncio
+        from concurrent.futures import ThreadPoolExecutor
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(
-            None,
-            lambda: boxing_analyzer.analyze_video(tmp_path, file.filename or ""),
-        )
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            result = await loop.run_in_executor(
+                executor,
+                boxing_analyzer.analyze_video,
+                tmp_path,
+                file.filename or "",
+            )
 
         # Persist test run (best-effort — don't fail the response if DB is down)
         try:
@@ -147,14 +193,31 @@ async def analyze_video(
             logger.warning("test_run persistence failed (non-fatal): %s", db_exc)
             run_id = None
 
+        # Generate intelligent coaching feedback
+        coaching_feedback = []
+        motivational_messages = []
+        
+        if baseline_loaded and result.frame_results:
+            # Get Spanish coaching feedback based on punch type and features
+            feedback_engine = boxing_analyzer._feedback_engine
+            for frame_result in result.frame_results[:5]:  # Use first 5 frames for feedback
+                coaching = feedback_engine.spanish_feedback.get_coaching_feedback(punch_type, frame_result.features)
+                if coaching:
+                    coaching_feedback.extend(coaching)
+                motivational_messages.append(feedback_engine.spanish_feedback.get_motivational_message())
+        
         return {
             "run_id": run_id,
             "video_name": result.video_name,
+            "punch_type_detected": punch_type,
+            "baseline_type": punch_type if baseline_loaded else "none",
+            "baseline_used": str(baseline_file) if baseline_loaded else "No baseline loaded",
             "total_frames": result.total_frames,
             "scored_frames": result.scored_frames,
             "avg_score": result.avg_score,
             "min_score": result.min_score,
             "max_score": result.max_score,
+            "technique_level": "elite" if result.avg_score >= 85 else "good" if result.avg_score >= 70 else "developing" if result.avg_score >= 50 else "poor",
             "frame_scores": [
                 {
                     "frame_index": r.frame_index,
@@ -164,6 +227,8 @@ async def analyze_video(
                 for r in result.frame_results
             ],
             "baseline_curve": result.baseline_curve,
+            "coaching_feedback": coaching_feedback[:3],  # Limit to 3 messages
+            "motivational_messages": motivational_messages[:2],  # Limit to 2 messages
             "feedback": result.feedback,
             "punch_type": result.punch_type,
             "processing_ms": result.processing_ms,
@@ -213,7 +278,7 @@ async def upload_video(
     file: UploadFile = File(...),
     session_id: Optional[str] = Query(None, description="ID de sesión existente (opcional)"),
 ):
-    """Upload a video for offline boxing analysis."""
+    """Upload a video for offline boxing analysis using new pipeline."""
     temp_filename = f"temp_{uuid.uuid4().hex}_{file.filename}"
     temp_path = boxing_service.temp_dir / temp_filename
 
@@ -222,31 +287,50 @@ async def upload_video(
         with open(temp_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        result = boxing_service.process_video_file(temp_path, file.filename, session_id)
+        # Use new analyze_video pipeline instead of old boxing_service
+        result = await analyze_video(file, session_id)
 
-        # Persist to MongoDB
-        existing = await BoxingSession.find_one(BoxingSession.session_id == result.session_id)
+        # Create processed video with MediaPipe annotations for frontend
+        processed_filename = f"processed_{uuid.uuid4().hex}_{file.filename}"
+        processed_path = boxing_service.output_dir / processed_filename
+        
+        # Process video with MediaPipe annotations
+        await create_annotated_video(temp_path, processed_path, file.filename)
+
+        # Persist to MongoDB with new fields
+        existing = await BoxingSession.find_one(BoxingSession.session_id == session_id or result.get("run_id"))
         if not existing:
             existing = BoxingSession(
-                session_id=result.session_id,
-                processed_filename=result.processed_filename,
+                session_id=session_id or result.get("run_id"),
+                processed_filename=processed_filename,
             )
 
-        existing.frames_analyzed = result.frame_count
-        existing.baseline_used = result.baseline_used
-        existing.feedback_summary = result.summary_lines
-        existing.metrics_path = str(result.metrics_path) if result.metrics_path else None
-        existing.session_file = str(result.session_file) if result.session_file else None
-        existing.session_rows = result.session_rows
+        existing.frames_analyzed = result.get("scored_frames", 0)
+        existing.baseline_used = result.get("baseline_type") != "none"
+        existing.feedback_summary = result.get("coaching_feedback", [])
+        existing.metrics_path = None  # Will be updated if needed
+        existing.session_file = None  # Will be updated if needed
+        existing.session_rows = result.get("scored_frames", 0)
         await existing.save()
 
         return {
-            "video_url": f"/boxing/videos/processed/{result.processed_filename}",
-            "frames_analyzed": result.frame_count,
-            "baseline_used": result.baseline_used,
-            "session_id": result.session_id,
-            "feedback_summary": result.summary_lines,
-            "session_rows": result.session_rows,
+            "video_url": f"/boxing/videos/processed/{processed_filename}",
+            "frames_analyzed": result.get("scored_frames", 0),
+            "baseline_used": result.get("baseline_type") != "none",
+            "session_id": session_id or result.get("run_id"),
+            "feedback_summary": result.get("coaching_feedback", []),
+            "session_rows": result.get("scored_frames", 0),
+            # New fields for frontend
+            "punch_type_detected": result.get("punch_type_detected"),
+            "baseline_type": result.get("baseline_type"),
+            "baseline_used_path": result.get("baseline_used"),
+            "avg_score": result.get("avg_score"),
+            "min_score": result.get("min_score"),
+            "max_score": result.get("max_score"),
+            "technique_level": result.get("technique_level"),
+            "coaching_feedback": result.get("coaching_feedback", []),
+            "motivational_messages": result.get("motivational_messages", []),
+            "processing_ms": result.get("processing_ms"),
         }
 
     except Exception as exc:
@@ -256,16 +340,95 @@ async def upload_video(
         temp_path.unlink(missing_ok=True)
 
 
+async def create_annotated_video(input_path: Path, output_path: Path, filename: str):
+    """Create video with MediaPipe pose annotations for frontend visualization."""
+    try:
+        import cv2
+        import mediapipe as mp
+        
+        mp_pose = mp.solutions.pose
+        mp_drawing = mp.solutions.drawing_utils
+        mp_drawing_styles = mp.solutions.drawing_styles
+        
+        cap = cv2.VideoCapture(str(input_path))
+        if not cap.isOpened():
+            raise RuntimeError("No se pudo abrir el video para anotación")
+        
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)) or 640
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) or 480
+        
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        writer = cv2.VideoWriter(str(output_path), fourcc, fps, (width, height))
+        
+        with mp_pose.Pose(
+            model_complexity=1,
+            enable_segmentation=False,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        ) as pose:
+            
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                
+                # Convert BGR to RGB for MediaPipe
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                results = pose.process(rgb_frame)
+                
+                # Draw pose landmarks
+                if results.pose_landmarks:
+                    # Draw pose connections
+                    mp_drawing.draw_landmarks(
+                        frame,
+                        results.pose_landmarks,
+                        mp_pose.POSE_CONNECTIONS,
+                        landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style()
+                    )
+                    
+                    # Highlight boxing-specific landmarks
+                    boxing_landmarks = [
+                        mp_pose.PoseLandmark.LEFT_SHOULDER,
+                        mp_pose.PoseLandmark.RIGHT_SHOULDER,
+                        mp_pose.PoseLandmark.LEFT_ELBOW,
+                        mp_pose.PoseLandmark.RIGHT_ELBOW,
+                        mp_pose.PoseLandmark.LEFT_WRIST,
+                        mp_pose.PoseLandmark.RIGHT_WRIST,
+                        mp_pose.PoseLandmark.LEFT_HIP,
+                        mp_pose.PoseLandmark.RIGHT_HIP,
+                    ]
+                    
+                    for landmark in boxing_landmarks:
+                        if results.pose_landmarks.landmark[landmark.value].visibility > 0.5:
+                            x = int(results.pose_landmarks.landmark[landmark.value].x * width)
+                            y = int(results.pose_landmarks.landmark[landmark.value].y * height)
+                            cv2.circle(frame, (x, y), 8, (0, 255, 255), -1)  # Yellow circles
+                            cv2.circle(frame, (x, y), 10, (0, 0, 0), 2)  # Black outline
+                
+                writer.write(frame)
+        
+        cap.release()
+        writer.release()
+        logger.info(f"Video anotado creado: {output_path}")
+        
+    except Exception as e:
+        logger.error(f"Error al crear video anotado: {e}")
+        # Fallback: copy original video
+        import shutil
+        shutil.copy2(input_path, output_path)
+
+
 @router.websocket("/ws/jab")
 async def jab_websocket(websocket: WebSocket):
     """Real-time jab analysis via WebSocket.
 
-    Accepts landmarks (not images) from the mobile client and
+    Accepts landmarks (not images) from mobile client and
     returns technique feedback and jab detection events.
 
-    Consent is verified once per session on the first frame that carries a
+    Consent is verified once per session on first frame that carries a
     ``user_id``.  If biometric consent has not been granted the socket
-    remains open but each frame is rejected with an ``"consent_required"``
+    remains open but each frame is rejected with an ``"consent_required"`` 
     error until the client provides a user with valid consent.
 
     Expected payload::
@@ -277,7 +440,7 @@ async def jab_websocket(websocket: WebSocket):
             "session_id": "optional-session-uuid"
         }
 
-    If ``session_id`` is present in the payload it will be echoed back
+    If ``session_id`` is present in payload it will be echoed back
     in every response frame so the mobile client can correlate feedback
     to the originating session without extra bookkeeping.
     """
@@ -291,12 +454,16 @@ async def jab_websocket(websocket: WebSocket):
     consent_verified: bool = False
     consented_user_id: str | None = None
 
-    # Stable session key for the window buffer throughout this connection.
+    # Stable session key for window buffer throughout this connection.
     conn_session_id = str(uuid.uuid4())
     window_buffer = _get_window_buffer()
 
     jitter_buffer = []
     MAX_BUFFER_SIZE = 3 # small window for reordering
+    
+    # Connection management for proper cleanup
+    connection_start_time = time.time()
+    is_connected = True
     
     try:
         while True:
@@ -517,6 +684,36 @@ async def status():
         sessions=boxing_service.get_session_stats(),
     )
 
+
+@router.post("/analyze-multi-baseline", response_model=MultiBaselineResponse)
+async def analyze_multi_baseline(
+    request: MultiBaselineRequest
+):
+    """Hybrid punch analysis: RF filtering + DTW validation."""
+    from multi_baseline_analyzer import analyze_user_sequence, get_system_status
+    
+    try:
+        result = analyze_user_sequence(request.features, request.threshold)
+        return MultiBaselineResponse(
+            success=True,
+            punch_type=result["punch_type"],
+            dtw_score=result["dtw_score"],
+            is_valid=result["is_valid"],
+            rf_predictions=result.get("rf_predictions", []),
+            all_scores=result["all_scores"],
+            threshold_used=result["threshold_used"],
+            system_status=get_system_status()
+        )
+    except Exception as e:
+        logger.exception("Error in multi-baseline analysis: %s", e)
+        return MultiBaselineResponse(
+            success=False,
+            punch_type="unknown",
+            dtw_score=float('inf'),
+            is_valid=False,
+            threshold_used=15.0,
+            error=str(e)
+        )
 
 @router.delete("/cleanup", response_model=CleanupResponse)
 async def cleanup_files():

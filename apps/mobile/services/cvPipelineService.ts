@@ -62,6 +62,16 @@ export async function uploadVideoForProcessing(
     session_id?: string;
     feedback_summary?: string[];
     session_rows?: number;
+    punch_type_detected?: string;
+    baseline_type?: string;
+    baseline_used_path?: string;
+    avg_score?: number;
+    min_score?: number;
+    max_score?: number;
+    technique_level?: string;
+    coaching_feedback?: string[];
+    motivational_messages?: string[];
+    processing_ms?: number;
   };
 
   if (!response.video_url) {
@@ -76,5 +86,15 @@ export async function uploadVideoForProcessing(
     sessionId: response.session_id,
     feedbackSummary: response.feedback_summary ?? [],
     sessionRows: response.session_rows,
+    punchTypeDetected: response.punch_type_detected,
+    baselineType: response.baseline_type,
+    baselineUsedPath: response.baseline_used_path,
+    avgScore: response.avg_score ?? 0,
+    minScore: response.min_score ?? 0,
+    maxScore: response.max_score ?? 0,
+    techniqueLevel: response.technique_level,
+    coachingFeedback: response.coaching_feedback ?? [],
+    motivationalMessages: response.motivational_messages ?? [],
+    processingMs: response.processing_ms,
   };
 }

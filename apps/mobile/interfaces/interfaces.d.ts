@@ -71,6 +71,17 @@ export interface ProcessVideoResult {
   metricsPath?: string;
   sessionFile?: string;
   sessionRows?: number;
+  // New fields from updated pipeline
+  punchTypeDetected?: string;
+  baselineType?: string;
+  baselineUsedPath?: string;
+  avgScore?: number;
+  minScore?: number;
+  maxScore?: number;
+  techniqueLevel?: string;
+  coachingFeedback?: string[];
+  motivationalMessages?: string[];
+  processingMs?: number;
 }
 
 /**

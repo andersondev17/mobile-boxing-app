@@ -101,6 +101,17 @@ export default function TechniqueCapture() {
           metricsPath: result.metricsPath ?? '',
           sessionFile: result.sessionFile ?? '',
           sessionRows: result.sessionRows ? String(result.sessionRows) : '',
+          // New fields from updated pipeline
+          punchTypeDetected: result.punchTypeDetected ?? 'unknown',
+          baselineType: result.baselineType ?? 'none',
+          baselineUsedPath: result.baselineUsedPath ?? '',
+          avgScore: String(result.avgScore ?? 0),
+          minScore: String(result.minScore ?? 0),
+          maxScore: String(result.maxScore ?? 0),
+          techniqueLevel: result.techniqueLevel ?? 'poor',
+          coachingFeedback: JSON.stringify(result.coachingFeedback ?? []),
+          motivationalMessages: JSON.stringify(result.motivationalMessages ?? []),
+          processingMs: String(result.processingMs ?? 0),
         },
       });
     } else {

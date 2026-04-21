@@ -86,6 +86,26 @@ export default function TechniqueResults() {
     [params.feedbackSummary]
   );
 
+  // New fields from updated pipeline
+  const punchTypeDetected = (params.punchTypeDetected as string) ?? 'unknown';
+  const baselineType = (params.baselineType as string) ?? 'none';
+  const baselineUsedPath = (params.baselineUsedPath as string) ?? '';
+  const avgScore = Number(params.avgScore ?? 0);
+  const minScore = Number(params.minScore ?? 0);
+  const maxScore = Number(params.maxScore ?? 0);
+  const techniqueLevel = (params.techniqueLevel as string) ?? 'poor';
+  const coachingFeedback = useMemo(
+    () => parseSummary(params.coachingFeedback),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [params.coachingFeedback]
+  );
+  const motivationalMessages = useMemo(
+    () => parseSummary(params.motivationalMessages),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [params.motivationalMessages]
+  );
+  const processingMs = Number(params.processingMs ?? 0);
+
   const exerciseId = (params.exerciseId as string) ?? '';
   const sessionId = params.sessionId as string | undefined;
 
@@ -95,8 +115,8 @@ export default function TechniqueResults() {
   // Group feedback now (very small and readable)
   const grouped = useMemo(() => groupFeedback(feedbackSummary), [feedbackSummary]);
 
-  // Compute a jab score with a tiny heuristic
-  const jabScore = useMemo(
+  // Use real score from pipeline instead of heuristic
+  const displayScore = avgScore > 0 ? avgScore : useMemo(
     () =>
       computeJabScore(framesAnalyzed, {
         critical: grouped.critical.length,
@@ -176,7 +196,7 @@ export default function TechniqueResults() {
         >
           <Image source={icons.back} style={{ width: 20, height: 20 }} tintColor="#fff" />
         </TouchableOpacity>
-        <Text className="text-white font-oswaldbold text-xl">Resultados — Jab</Text>
+        <Text className="text-white font-oswaldbold text-xl">Resultados - {punchTypeDetected.charAt(0).toUpperCase() + punchTypeDetected.slice(1)}</Text>
         <View className="w-10" />
       </View>
 
@@ -188,19 +208,49 @@ export default function TechniqueResults() {
           </Text>
 
           <View className="flex-row items-center mb-4">
-            <Metric label="Detección con IA" value={baselineUsed ? 'Activo' : 'No'} />
-            <Metric label="Score" value={`${jabScore}/100`} />
+            <Metric label="Tipo de Golpe" value={punchTypeDetected.charAt(0).toUpperCase() + punchTypeDetected.slice(1)} />
+            <Metric label="Nivel Técnica" value={techniqueLevel.charAt(0).toUpperCase() + techniqueLevel.slice(1)} />
+          </View>
+
+          <View className="flex-row items-center mb-4">
+            <Metric label="Score Promedio" value={`${displayScore.toFixed(1)}`} />
+            <Metric label="Frames Analizados" value={framesAnalyzed.toString()} />
+          </View>
+
+          {/* Score range */}
+          <View className="flex-row items-center mb-4">
+            <Metric label="Score Mínimo" value={`${minScore.toFixed(1)}`} />
+            <Metric label="Score Máximo" value={`${maxScore.toFixed(1)}`} />
           </View>
 
           {/* progress bar representation */}
           <View className="h-3 rounded-full bg-white/10 overflow-hidden mt-2">
             <View
-              style={{ width: `${jabScore}%` }}
+              style={{ width: `${Math.min(100, displayScore)}%` }}
               className="h-3 rounded-full bg-gradient-to-r from-[#C29B2E] to-[#F5D068]"
             />
           </View>
+
+          {/* Processing time */}
+          <Text className="text-white/50 font-spacemono text-xs text-center mt-2">
+            Tiempo de procesamiento: {(processingMs / 1000).toFixed(1)}s
+          </Text>
         </View>
       </View>
+
+      {/* Baseline Information */}
+      {baselineType !== 'none' && (
+        <View className="px-5 mt-4">
+          <View className="rounded-2xl px-4 py-3 bg-white/5 border border-white/10 backdrop-blur-xl">
+            <Text className="text-primary-200 font-oswaldmed text-xs uppercase text-center tracking-wider mb-2">
+              Baseline Utilizado
+            </Text>
+            <Text className="text-white/70 font-spacemono text-xs text-center">
+              {baselineType.charAt(0).toUpperCase() + baselineType.slice(1)} - {baselineUsed ? 'Activo' : 'Inactivo'}
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* Video container*/}
       <View className="px-5 mt-6">
@@ -221,12 +271,42 @@ export default function TechniqueResults() {
         <Text className="text-white/50 font-spacemono text-xs text-center mt-3">Video procesado con anotaciones del modelo de técnica</Text>
       </View>
 
-      {/* Feedback grouped */}
-      <View className="px-5 mt-6">
-        <CategoryCard title="Crítico (arreglar primero)" items={grouped.critical} tone="danger" />
-        <CategoryCard title="Para mejorar" items={grouped.improve} tone="warn" />
-        <CategoryCard title="Bien ejecutado" items={grouped.good} tone="good" />
-      </View>
+      {/* Spanish Coaching Feedback */}
+      {coachingFeedback.length > 0 && (
+        <View className="px-5 mt-6">
+          <View className="rounded-2xl p-4 bg-white/5 border border-white/10 backdrop-blur-xl mb-3">
+            <Text className="text-primary-100 font-oswaldbold mb-3 text-center">Feedback de Coaching</Text>
+            {coachingFeedback.map((feedback, idx) => (
+              <Text key={`coaching-${idx}`} className="text-white/80 font-spacemono text-sm mb-2">
+                {feedback}
+              </Text>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Motivational Messages */}
+      {motivationalMessages.length > 0 && (
+        <View className="px-5 mt-4">
+          <View className="rounded-2xl p-4 bg-gradient-to-r from-[#C29B2E]/20 to-[#F5D068]/20 border border-[#C29B2E]/30 backdrop-blur-xl mb-3">
+            <Text className="text-primary-100 font-oswaldbold mb-2 text-center">¡Motivación!</Text>
+            {motivationalMessages.map((message, idx) => (
+              <Text key={`motivational-${idx}`} className="text-white/90 font-spacemono text-sm mb-1 text-center">
+                {message}
+              </Text>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Legacy Feedback grouped */}
+      {feedbackSummary.length > 0 && (
+        <View className="px-5 mt-6">
+          <CategoryCard title="Crítico (arreglar primero)" items={grouped.critical} tone="danger" />
+          <CategoryCard title="Para mejorar" items={grouped.improve} tone="warn" />
+          <CategoryCard title="Bien ejecutado" items={grouped.good} tone="good" />
+        </View>
+      )}
 
       {/* Actions */}
       <View className="px-5 pb-10 mt-6 space-y-4">

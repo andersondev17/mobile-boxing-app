@@ -1,0 +1,156 @@
+{
+  "total_baselines": 6,
+  "punch_types": [
+    "jab",
+    "cross",
+    "hook",
+    "uppercut"
+  ],
+  "output_directory": "/app/dataset",
+  "files_created": [
+    {
+      "punch_type": "jab",
+      "version": "1",
+      "parquet": "/app/dataset/jab/jab_v1.parquet",
+      "json": "/app/dataset/jab/jab_v1.json"
+    },
+    {
+      "punch_type": "jab",
+      "version": "1",
+      "parquet": "/app/dataset/jab/jab_v1.parquet",
+      "json": "/app/dataset/jab/jab_v1.json"
+    },
+    {
+      "punch_type": "jab",
+      "version": "2",
+      "parquet": "/app/dataset/jab/jab_v2.parquet",
+      "json": "/app/dataset/jab/jab_v2.json"
+    },
+    {
+      "punch_type": "jab",
+      "version": "2",
+      "parquet": "/app/dataset/jab/jab_v2.parquet",
+      "json": "/app/dataset/jab/jab_v2.json"
+    },
+    {
+      "punch_type": "jab",
+      "version": "3",
+      "parquet": "/app/dataset/jab/jab_v3.parquet",
+      "json": "/app/dataset/jab/jab_v3.json"
+    },
+    {
+      "punch_type": "jab",
+      "version": "3",
+      "parquet": "/app/dataset/jab/jab_v3.parquet",
+      "json": "/app/dataset/jab/jab_v3.json"
+    },
+    {
+      "punch_type": "cross",
+      "version": "1",
+      "parquet": "/app/dataset/cross/cross_v1.parquet",
+      "json": "/app/dataset/cross/cross_v1.json"
+    },
+    {
+      "punch_type": "cross",
+      "version": "1",
+      "parquet": "/app/dataset/cross/cross_v1.parquet",
+      "json": "/app/dataset/cross/cross_v1.json"
+    },
+    {
+      "punch_type": "cross",
+      "version": "2",
+      "parquet": "/app/dataset/cross/cross_v2.parquet",
+      "json": "/app/dataset/cross/cross_v2.json"
+    },
+    {
+      "punch_type": "cross",
+      "version": "2",
+      "parquet": "/app/dataset/cross/cross_v2.parquet",
+      "json": "/app/dataset/cross/cross_v2.json"
+    },
+    {
+      "punch_type": "cross",
+      "version": "3",
+      "parquet": "/app/dataset/cross/cross_v3.parquet",
+      "json": "/app/dataset/cross/cross_v3.json"
+    },
+    {
+      "punch_type": "cross",
+      "version": "3",
+      "parquet": "/app/dataset/cross/cross_v3.parquet",
+      "json": "/app/dataset/cross/cross_v3.json"
+    },
+    {
+      "punch_type": "hook",
+      "version": "1",
+      "parquet": "/app/dataset/hook/hook_v1.parquet",
+      "json": "/app/dataset/hook/hook_v1.json"
+    },
+    {
+      "punch_type": "hook",
+      "version": "1",
+      "parquet": "/app/dataset/hook/hook_v1.parquet",
+      "json": "/app/dataset/hook/hook_v1.json"
+    },
+    {
+      "punch_type": "hook",
+      "version": "2",
+      "parquet": "/app/dataset/hook/hook_v2.parquet",
+      "json": "/app/dataset/hook/hook_v2.json"
+    },
+    {
+      "punch_type": "hook",
+      "version": "2",
+      "parquet": "/app/dataset/hook/hook_v2.parquet",
+      "json": "/app/dataset/hook/hook_v2.json"
+    },
+    {
+      "punch_type": "hook",
+      "version": "3",
+      "parquet": "/app/dataset/hook/hook_v3.parquet",
+      "json": "/app/dataset/hook/hook_v3.json"
+    },
+    {
+      "punch_type": "hook",
+      "version": "3",
+      "parquet": "/app/dataset/hook/hook_v3.parquet",
+      "json": "/app/dataset/hook/hook_v3.json"
+    },
+    {
+      "punch_type": "uppercut",
+      "version": "1",
+      "parquet": "/app/dataset/uppercut/uppercut_v1.parquet",
+      "json": "/app/dataset/uppercut/uppercut_v1.json"
+    },
+    {
+      "punch_type": "uppercut",
+      "version": "1",
+      "parquet": "/app/dataset/uppercut/uppercut_v1.parquet",
+      "json": "/app/dataset/uppercut/uppercut_v1.json"
+    },
+    {
+      "punch_type": "uppercut",
+      "version": "2",
+      "parquet": "/app/dataset/uppercut/uppercut_v2.parquet",
+      "json": "/app/dataset/uppercut/uppercut_v2.json"
+    },
+    {
+      "punch_type": "uppercut",
+      "version": "2",
+      "parquet": "/app/dataset/uppercut/uppercut_v2.parquet",
+      "json": "/app/dataset/uppercut/uppercut_v2.json"
+    },
+    {
+      "punch_type": "uppercut",
+      "version": "3",
+      "parquet": "/app/dataset/uppercut/uppercut_v3.parquet",
+      "json": "/app/dataset/uppercut/uppercut_v3.json"
+    },
+    {
+      "punch_type": "uppercut",
+      "version": "3",
+      "parquet": "/app/dataset/uppercut/uppercut_v3.parquet",
+      "json": "/app/dataset/uppercut/uppercut_v3.json"
+    }
+  ]
+}
