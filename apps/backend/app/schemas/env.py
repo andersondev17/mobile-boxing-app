@@ -50,6 +50,12 @@ class Settings(BaseSettings):
     CLIENT_ID: str = "boxing-app"
     SESSION_TIMEOUT: int = 30000
     AUTO_OFFSET_RESET: str = "earliest"
+    
+    # Kafka Security (Confluent Cloud)
+    KAFKA_SECURITY_PROTOCOL: str = "PLAINTEXT"
+    KAFKA_SASL_MECHANISM: str = "PLAIN"
+    KAFKA_SASL_USERNAME: str = ""
+    KAFKA_SASL_PASSWORD: str = ""
 
     # ── JWT / Auth ───────────────────────────────────────────
     JWT_SECRET: str = "change-me-in-production"

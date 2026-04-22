@@ -1,57 +1,5 @@
 services:
-  mongodb:
-    image: mongo:7
-    container_name: boxing-mongodb
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-admin123}
-      MONGO_INITDB_DATABASE: boxing_app
-    volumes:
-      - mongodb_data:/data/db
-    networks:
-      - boxing_network
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 15s
-
-  mongo-express:
-    image: mongo-express:latest
-    container_name: boxing-mongo-ui
-    restart: unless-stopped
-    ports:
-      - "8081:8081"
-    environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_USER:-admin}
-      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD:-admin123}
-      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-admin123}@mongodb:27017/
-      ME_CONFIG_BASICAUTH: "false"
-    depends_on:
-      mongodb:
-        condition: service_healthy
-    networks:
-      - boxing_network
-
-  redis:
-    image: redis:7-alpine
-    container_name: boxing-redis
-    restart: unless-stopped
-    command: redis-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy allkeys-lru
-    ports:
-      - "6380:6379"
-    networks:
-      - boxing_network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
+  # ── PostgreSQL (Auth & Analytics) ──────────────────────────
   postgres:
     image: postgres:15-alpine
     container_name: boxing-postgres
@@ -61,101 +9,146 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
-      POSTGRES_DB: boxing_app
+      POSTGRES_DB: ${POSTGRES_DB:-boxing_app}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - boxing_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d boxing_app"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-boxing_app}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── MongoDB (Biometric Data) ───────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: boxing-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-admin123}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-boxing_app}
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/init-mongo.js:/docker-entrypoint-initdb.d/init.js:ro
+    networks:
+      - boxing_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 15s
+
+  # ── Redis (Real-time Buffers) ──────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: boxing-redis
+    restart: unless-stopped
+    command: redis-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - boxing_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  kafka:
-    image: confluentinc/cp-kafka:7.6.0
-    container_name: boxing-kafka
-    restart: unless-stopped
-    ports:
-      - "9093:9092"
-      - "19093:19092"
-    environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:29093,EXTERNAL://0.0.0.0:19092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:19092
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LOG_DIRS: /var/lib/kafka/data
-      CLUSTER_ID: MkQkDlCXGTe-6QvfyMUHWQ
-    volumes:
-      - kafka_data:/var/lib/kafka/data
-    networks:
-      - boxing_network
-    healthcheck:
-      test: ["CMD", "bash", "-c", "exit 0"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+  # ── Kafka UI Services (Development) ──────────────────────────
+  # Removed - Using Confluent Cloud directly
+  # mongo-express, kafdrop, redis-commander removed as requested
 
-  kafdrop:
-    image: obsidiandynamics/kafdrop:latest
-    container_name: boxing-kafdrop
-    restart: unless-stopped
-    ports:
-      - "9000:9000"
-    environment:
-      KAFKA_BROKERCONNECT: kafka:9092
-    depends_on:
-      kafka:
-        condition: service_healthy
-    networks:
-      - boxing_network
-
+  # ── Backend API ─────────────────────────────────────────────
   backend:
-    build: ./app
+    build: 
+      context: .
+      dockerfile: app/Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
     container_name: boxing-backend
     restart: unless-stopped
     ports:
       - "8000:8000"
     env_file:
       - .env.docker
+    environment:
+      - PYTHONPATH=/app
+      - ENV_MODE=${ENV_MODE:-local_real}
+      - SENTRY_DSN=${SENTRY_DSN}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
     depends_on:
-      mongodb:
-        condition: service_healthy
       postgres:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
       redis:
         condition: service_healthy
-      kafka:
-        condition: service_started
     networks:
       - boxing_network
     volumes:
       - ./app:/app
+      - ./logs:/app/logs
+      - ./models:/app/models
+      - ./dataset:/app/dataset
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/monitoring/health/simple"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
 
-  web:
+  # ── ML Training Service (Optional) ─────────────────────────────
+  ml-trainer:
     build:
-      context: ../web
+      context: ./app
       dockerfile: Dockerfile
-    container_name: boxing-web
-    restart: unless-stopped
-    ports:
-      - "3000:80"
+    container_name: boxing-ml-trainer
+    restart: "no"
+    profiles:
+      - ml
+    environment:
+      - ENV_MODE=ml_only
+    volumes:
+      - ./app:/app
+      - ./models:/app/models
+      - ./dataset:/app/dataset
     networks:
       - boxing_network
-    depends_on:
-      - backend
+    command: ["python", "ml_service/train_models.py"]
 
+# ── Volumes ─────────────────────────────────────────────────────
 volumes:
-  mongodb_data:
   postgres_data:
-  kafka_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+  # Kafka volumes removed - using Confluent Cloud directly
 
+# ── Networks ───────────────────────────────────────────────────
 networks:
   boxing_network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

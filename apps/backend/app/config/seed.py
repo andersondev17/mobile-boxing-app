@@ -6,7 +6,8 @@ into MongoDB on application startup (idempotent — skips if data exists).
 """
 
 import logging
-from models import Role, Category, Difficulty, Exercise
+from models.postgres import User, UserMetrics, SessionAnalytics, Engagement, TestRun, UserProgress, Achievement, UserAchievement
+from models.model import Role, Category, Difficulty, Exercise
 
 logger = logging.getLogger(__name__)
 

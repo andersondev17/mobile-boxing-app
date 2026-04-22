@@ -11,11 +11,10 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Python dependencies
 COPY requirements.txt .
-
-# Instalar directamente en el Python del sistema (más simple para Docker)
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install uvicorn fastapi
 
 COPY . .
 

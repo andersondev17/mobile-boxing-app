@@ -141,11 +141,11 @@ def build_all(videos_dir: Path, processed_dir: Path, final_out: Path) -> None:
         punch_raw = videos_dir / punch / f"{punch}_raw.parquet"
         punch_out = processed_dir / punch / f"{punch}_processed.parquet"
         
-        # If there's no raw parquet yet, mock it for structure sake (just to unblock execution)
+        # Skip if no raw parquet exists - requires real video processing
         if not punch_raw.exists():
-            punch_raw.parent.mkdir(parents=True, exist_ok=True)
-            mock_df = pd.DataFrame([{col: np.random.rand() * 10 for col in FEATURE_ORDER} | {"video": "mock"} for _ in range(60)])
-            mock_df.to_parquet(punch_raw)
+            logger.warning(f"⚠️ No raw data found for {punch} at {punch_raw}")
+            logger.info(f"📹 Please place processed video data in: {punch_raw}")
+            continue  # Skip to next punch type
             
         df = build_punch(punch_raw, punch_out, punch)
         if not df.empty:

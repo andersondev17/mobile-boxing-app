@@ -5,7 +5,7 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "/c/Users/Federico/Documents/projects/boxing-api"
+        "/c/Users/Carlos Guarin/Documents/projects/boxing-api"
       ]
     },
     "github": {
@@ -31,7 +31,7 @@
       "args": [
         "-y",
         "@bitbonsai/mcpvault@latest",
-        "C:\\Users\\Federico\\Documents\\projects\\boxing-api\\vault-boxing"
+        "C:\\Users\\Carlos Guarin\\Documents\\projects\\boxing-api\\vault-boxing"
       ]
     }
   }

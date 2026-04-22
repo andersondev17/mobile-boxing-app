@@ -33,6 +33,10 @@ from routes import (
     user_router,
     exercise_router,
     consent_router,
+    hybrid_analysis_router,
+    gamification_router,
+    monitoring_router,
+    ads_router,
 )
 from auth import auth_router
 from schemas.env import settings
@@ -79,7 +83,11 @@ def _init_sentry() -> None:
 
         sentry_sdk.init(
             dsn=settings.SENTRY_DSN,
-            traces_sample_rate=0.2,
+            traces_sample_rate=1.0,
+            profile_session_sample_rate=1.0,
+            profile_lifecycle="trace",
+            send_default_pii=True,
+            enable_logs=True,
             integrations=[StarletteIntegration(), FastApiIntegration()],
             environment=settings.ENV_MODE,
         )
@@ -147,6 +155,10 @@ app.include_router(auth_router)
 app.include_router(boxing_router)
 app.include_router(exercise_router)
 app.include_router(consent_router)
+app.include_router(hybrid_analysis_router)
+app.include_router(gamification_router)
+app.include_router(monitoring_router)
+app.include_router(ads_router)
 
 # Kafka router only when Kafka is enabled
 if settings.kafka_enabled:

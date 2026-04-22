@@ -31,11 +31,11 @@ class SmartWatchConsumer:
     """Consumes smartwatch telemetry from Kafka → Redis buffer.
 
     Partition key: user_id (guaranteed by producer).
-    Topic: health-metrics
+    Topics: health-metrics, gold (premium data)
     """
 
-    def __init__(self) -> None:
-        self.topic = settings.KAFKA_TOPIC_HEALTH
+    def __init__(self, topic: str = None) -> None:
+        self.topic = topic or settings.KAFKA_TOPIC_HEALTH
         self._conf = {
             "bootstrap.servers": settings.KAFKA_BROKERS,
             "group.id": settings.GROUP_ID,
@@ -46,6 +46,15 @@ class SmartWatchConsumer:
             "enable.auto.commit": True,
             "auto.commit.interval.ms": 5000,
         }
+        
+        # Add security configuration for Confluent Cloud
+        if settings.KAFKA_SECURITY_PROTOCOL != "PLAINTEXT":
+            self._conf.update({
+                "security.protocol": settings.KAFKA_SECURITY_PROTOCOL,
+                "sasl.mechanism": settings.KAFKA_SASL_MECHANISM,
+                "sasl.username": settings.KAFKA_SASL_USERNAME,
+                "sasl.password": settings.KAFKA_SASL_PASSWORD,
+            })
         self._consecutive_errors: int = 0
 
     # ------------------------------------------------------------------
