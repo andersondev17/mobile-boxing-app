@@ -99,7 +99,7 @@ services:
     volumes:
       - ./app:/app
       - ./logs:/app/logs
-      - ./models:/app/models
+      - ./app/models:/app/models
       - ./dataset:/app/dataset
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/monitoring/health/simple"]

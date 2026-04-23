@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from confluent_kafka import Producer
 
-from schemas import settings
+from app.schemas import settings
 
 
 class SmartWatchProducer:

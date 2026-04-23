@@ -58,33 +58,58 @@ class SpanishBoxingFeedback:
         messages = []
         coaching_set = self.COACHING_MESSAGES[punch_type]
         
+        # Normalize thresholds against baseline if available
+        baseline_stats = getattr(self, 'baseline_stats', None)
+        
+        def get_baseline_threshold(feature_key, hardcoded_threshold, baseline_percent=0.7):
+            """Get threshold relative to baseline or fallback to hardcoded."""
+            if baseline_stats and feature_key in baseline_stats.get('mean', {}):
+                baseline_mean = baseline_stats['mean'][feature_key]
+                return baseline_mean * baseline_percent
+            return hardcoded_threshold
+        
         # Analyze specific features for each punch type
         if punch_type == 'jab':
-            if features.get('forward_extent_left', 0) < 0.4:
+            extent_threshold = get_baseline_threshold('forward_extent_left', 0.4, 0.7)
+            speed_threshold = get_baseline_threshold('hand_speed', 8.0, 0.8)
+            rotation_threshold = get_baseline_threshold('torso_rotation', 0.1, 0.7)
+            
+            if features.get('forward_extent_left', 0) < extent_threshold:
                 messages.append(coaching_set['arm_extension'])
-            if features.get('hand_speed', 0) < 8.0:
+            if features.get('hand_speed', 0) < speed_threshold:
                 messages.append(coaching_set['speed_consistency'])
-            if features.get('torso_rotation', 0) < 0.1:
+            if features.get('torso_rotation', 0) < rotation_threshold:
                 messages.append(coaching_set['hip_rotation'])
                 
         elif punch_type == 'cross':
-            if features.get('torso_rotation', 0) < 0.2:
+            rotation_threshold = get_baseline_threshold('torso_rotation', 0.2, 0.7)
+            extent_threshold = get_baseline_threshold('forward_extent_right', 0.6, 0.7)
+            weight_threshold = get_baseline_threshold('weight_transfer', 0.7, 0.7)
+            
+            if features.get('torso_rotation', 0) < rotation_threshold:
                 messages.append(coaching_set['torso_rotation'])
-            if features.get('forward_extent_right', 0) < 0.6:
+            if features.get('forward_extent_right', 0) < extent_threshold:
                 messages.append(coaching_set['full_extension'])
-            if features.get('weight_transfer', 0) < 0.7:
+            if features.get('weight_transfer', 0) < weight_threshold:
                 messages.append(coaching_set['weight_transfer'])
                 
         elif punch_type == 'hook':
-            if features.get('elbow_angle_left', 180) > 120:
+            # For elbow angle, higher is worse (more bent), so use baseline_percent > 1.0
+            elbow_threshold = get_baseline_threshold('elbow_angle_left', 120, 1.2)
+            rotation_threshold = get_baseline_threshold('hip_rotation', 0.15, 0.7)
+            
+            if features.get('elbow_angle_left', 180) > elbow_threshold:
                 messages.append(coaching_set['elbow_angle'])
-            if features.get('hip_rotation', 0) < 0.15:
+            if features.get('hip_rotation', 0) < rotation_threshold:
                 messages.append(coaching_set['hip_explosion'])
                 
         elif punch_type == 'uppercut':
-            if features.get('vertical_displacement', 0) < 0.3:
+            vertical_threshold = get_baseline_threshold('vertical_displacement', 0.3, 0.7)
+            knee_threshold = get_baseline_threshold('knee_flexion', 0.2, 0.7)
+            
+            if features.get('vertical_displacement', 0) < vertical_threshold:
                 messages.append(coaching_set['vertical_trajectory'])
-            if features.get('knee_flexion', 0) < 0.2:
+            if features.get('knee_flexion', 0) < knee_threshold:
                 messages.append(coaching_set['knee_bend'])
         
         # Add general feedback

@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from redis import Redis
 
-from schemas import settings
+from app.schemas import settings
 
 REDIS_KEY = "smartwatch:telemetry"
 

@@ -29,7 +29,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from .dtw_scorer import FEATURE_ORDER
+from .dtw_scorer import DTW_FEATURE_ORDER
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ PUNCH_CLASSES: list[str] = ["jab", "cross", "hook", "null"]
 MODEL_PATH = Path(__file__).parent / "models" / "punch_classifier.joblib"
 
 WINDOW_SIZE = 30          # frames — constraint C-03
-N_FEATURES  = len(FEATURE_ORDER)  # 8
+N_FEATURES  = len(DTW_FEATURE_ORDER)  # 8
 
 # Validated by boxing-domain-expert
 PUNCH_PROB_THRESHOLD: float = 0.35
@@ -180,7 +180,7 @@ class PunchClassifier:
         rf: RandomForestClassifier = pipeline.named_steps["rf"]
         importances = rf.feature_importances_
         feature_names = [
-            f"{FEATURE_ORDER[i % N_FEATURES]}_f{i // N_FEATURES}"
+            f"{DTW_FEATURE_ORDER[i % N_FEATURES]}_f{i // N_FEATURES}"
             for i in range(WINDOW_SIZE * N_FEATURES)
         ]
         sorted_pairs = sorted(
@@ -220,13 +220,13 @@ class PunchClassifier:
         """Flatten a 30-frame window into a 1-D feature vector (240 values).
 
         Elbow angles are normalised by /180 before flattening so all values
-        are on a comparable scale.  Column order follows FEATURE_ORDER so the
+        are on a comparable scale.  Column order follows DTW_FEATURE_ORDER so the
         layout is consistent with ``dtw_scorer._window_to_matrix``.
         """
         rows = []
         for frame in window[:WINDOW_SIZE]:
             row = []
-            for key in FEATURE_ORDER:
+            for key in DTW_FEATURE_ORDER:
                 value = float(frame.get(key, 0.0))
                 if key in ("elbow_angle_left", "elbow_angle_right"):
                     value /= 180.0

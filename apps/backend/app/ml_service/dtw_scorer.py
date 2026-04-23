@@ -24,17 +24,6 @@ from dtaidistance import dtw_ndim
 
 logger = logging.getLogger(__name__)
 
-FEATURE_ORDER: list[str] = [
-    "elbow_angle_left",
-    "elbow_angle_right",
-    "forward_extent_left",
-    "forward_extent_right",
-    "shoulder_rotation",
-    "hip_rotation",
-    "guard_distance",
-    "wrist_lateral_displacement",
-]
-
 DTW_FEATURE_ORDER: list[str] = [
     "elbow_angle_left",
     "forward_extent_left",

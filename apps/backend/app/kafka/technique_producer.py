@@ -14,7 +14,7 @@ from typing import Any
 
 from confluent_kafka import Producer
 
-from schemas import settings
+from app.schemas import settings
 
 
 class TechniqueProducer:

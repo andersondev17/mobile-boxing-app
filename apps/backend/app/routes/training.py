@@ -5,8 +5,8 @@ Training CRUD endpoints using Beanie ODM.
 from fastapi import APIRouter, HTTPException, status
 from typing import List
 
-from models import Training
-from schemas import TrainingBase, TrainingCreate
+from app.models import Training
+from app.schemas import TrainingBase, TrainingCreate
 
 router = APIRouter(prefix="/training", tags=["training"])
 

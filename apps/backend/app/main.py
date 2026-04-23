@@ -25,8 +25,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from config import init_db, close_db, run_all_seeds
-from routes import (
+from app.config import init_db, close_db, run_all_seeds
+from app.routes import (
     boxing_router,
     kafka_router,
     training_router,
@@ -36,10 +36,9 @@ from routes import (
     hybrid_analysis_router,
     gamification_router,
     monitoring_router,
-    ads_router,
 )
-from auth import auth_router
-from schemas.env import settings
+from app.auth import auth_router
+from app.schemas.env import settings
 
 
 # ── Structured JSON Logging ───────────────────────────────────
@@ -158,7 +157,6 @@ app.include_router(consent_router)
 app.include_router(hybrid_analysis_router)
 app.include_router(gamification_router)
 app.include_router(monitoring_router)
-app.include_router(ads_router)
 
 # Kafka router only when Kafka is enabled
 if settings.kafka_enabled:

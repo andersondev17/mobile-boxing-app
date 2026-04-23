@@ -9,17 +9,20 @@ import logging
 import shutil
 import time
 import uuid
+from pathlib import Path
 from typing import List, Optional
 
 import redis.asyncio as aioredis
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
-from kafka import TechniqueProducer
-from ml_service import WindowBuffer, punch_classifier, dtw_scorer
-from ml_service.boxing_service import boxing_service
-from models import BoxingSession
-from models.boxing import Consent
-from schemas import (
+from app.kafka import TechniqueProducer
+from app.ml_service import WindowBuffer, punch_classifier, dtw_scorer
+from app.ml_service.boxing_service import boxing_service
+from app.models import BoxingSession
+from app.models.boxing import Consent
+from app.schemas import (
     BaselineResponse,
     BoxingSessionSchema,
     BoxingStatusResponse,
@@ -68,6 +71,12 @@ def _get_window_buffer() -> WindowBuffer:
     return _window_buffer
 
 logger = logging.getLogger(__name__)
+
+# Schema for punch type confirmation
+class ConfirmPunchTypeRequest(BaseModel):
+    session_id: str
+    confirmed_type: str  # "jab" | "cross" | "hook" | "uppercut"
+    user_id: Optional[str] = None
 
 router = APIRouter(prefix="/boxing", tags=["boxing"])
 
@@ -296,6 +305,15 @@ async def upload_video(
         
         # Process video with MediaPipe annotations
         await create_annotated_video(temp_path, processed_path, file.filename)
+        
+        # Convert processed video to base64 for mobile compatibility
+        import base64
+        try:
+            with open(processed_path, "rb") as video_file:
+                video_base64 = base64.b64encode(video_file.read()).decode("utf-8")
+        except Exception as e:
+            logger.error(f"Error convirtiendo video a base64: {e}")
+            video_base64 = None
 
         # Persist to MongoDB with new fields
         existing = await BoxingSession.find_one(BoxingSession.session_id == session_id or result.get("run_id"))
@@ -314,12 +332,15 @@ async def upload_video(
         await existing.save()
 
         return {
+            "video_base64": video_base64,  # Critical for mobile compatibility
             "video_url": f"/boxing/videos/processed/{processed_filename}",
             "frames_analyzed": result.get("scored_frames", 0),
             "baseline_used": result.get("baseline_type") != "none",
             "session_id": session_id or result.get("run_id"),
             "feedback_summary": result.get("coaching_feedback", []),
             "session_rows": result.get("scored_frames", 0),
+            "session_file": processed_filename,
+            "metrics_path": None,  # TODO: implement if needed
             # New fields for frontend
             "punch_type_detected": result.get("punch_type_detected"),
             "baseline_type": result.get("baseline_type"),
@@ -340,8 +361,8 @@ async def upload_video(
         temp_path.unlink(missing_ok=True)
 
 
+from pathlib import Path
 async def create_annotated_video(input_path: Path, output_path: Path, filename: str):
-    """Create video with MediaPipe pose annotations for frontend visualization."""
     try:
         import cv2
         import mediapipe as mp
@@ -683,6 +704,143 @@ async def status():
         baseline_loaded=boxing_service.get_baseline() is not None,
         sessions=boxing_service.get_session_stats(),
     )
+
+
+@router.get("/videos/pro")
+async def list_pro_videos():
+    """Lista videos profesionales disponibles para comparación."""
+    pro_dir = boxing_service.pro_videos_dir
+    videos = []
+    
+    if not pro_dir.exists():
+        return {"videos": []}
+    
+    for f in pro_dir.glob("*.mp4"):
+        stat = f.stat()
+        videos.append({
+            "name": f.stem,
+            "size": stat.st_size,
+            "modified": stat.st_mtime
+        })
+    
+    # Also check for .MOV files
+    for f in pro_dir.glob("*.MOV"):
+        stat = f.stat()
+        videos.append({
+            "name": f.stem,
+            "size": stat.st_size,
+            "modified": stat.st_mtime
+        })
+    
+    return {"videos": videos}
+
+
+@router.post("/videos/pro/{name}/process")
+async def process_pro_video(name: str):
+    """Procesa video profesional y devuelve session_id para comparación."""
+    from pathlib import Path
+    
+    video_path = boxing_service.pro_videos_dir / f"{name}.mp4"
+    if not video_path.exists():
+        # Try .MOV extension
+        video_path = boxing_service.pro_videos_dir / f"{name}.MOV"
+        if not video_path.exists():
+            raise HTTPException(404, detail=f"Video profesional '{name}' no encontrado")
+    
+    # Crear sesión única para este video pro
+    session_id = f"pro_{name}_{uuid.uuid4().hex[:8]}"
+    
+    try:
+        # Procesar video usando el pipeline existente
+        # Simular procesamiento por ahora - TODO: implementar procesamiento real
+        result = {
+            "session_id": session_id,
+            "name": name,
+            "frames_analyzed": 30,  # Placeholder
+            "baseline_type": name.split('_')[0] if '_' in name else "unknown",
+            "feedback": ["Video procesado exitosamente"]
+        }
+        
+        return result
+        
+    except Exception as exc:
+        logger.exception("Error procesando video profesional: %s", exc)
+        raise HTTPException(500, detail="Error procesando video profesional")
+
+
+@router.get("/videos/stream/{session_id}")
+async def stream_processed_video(session_id: str):
+    """Descarga video procesado por session_id."""
+    session = await BoxingSession.find_one(BoxingSession.session_id == session_id)
+    if not session:
+        raise HTTPException(404, detail="Sesión no encontrada")
+    
+    video_path = boxing_service.output_dir / session.processed_filename
+    if not video_path.exists():
+        raise HTTPException(404, detail="Video procesado no encontrado")
+    
+    return FileResponse(
+        path=video_path,
+        media_type="video/mp4",
+        filename=session.processed_filename
+    )
+
+
+@router.post("/confirm-punch-type")
+async def confirm_punch_type(request: ConfirmPunchTypeRequest):
+    """
+    Re-analiza sesión contra baseline específico tras confirmación del usuario.
+    
+    El flujo:
+    1. Usuario graba video -> sistema detecta "jab" automáticamente
+    2. UI muestra: "¿Detectamos JAB? [?] Es Cross]"
+    3. Si corrige -> llama este endpoint con confirmed_type="cross"
+    4. Sistema re-analiza landmarks guardados contra baseline de cross
+    5. Devuelve nuevos scores y feedback actualizado
+    """
+    import pandas as pd
+    from ml_service.analyzer import boxing_analyzer
+    
+    # 1. Recuperar sesión con landmarks/features guardados
+    session = await BoxingSession.find_one(
+        BoxingSession.session_id == request.session_id
+    )
+    if not session:
+        raise HTTPException(404, detail="Sesión no encontrada")
+    
+    # 2. Cargar baseline del tipo confirmado
+    baseline_file = Path("build_baseline/dataset") / request.confirmed_type / f"{request.confirmed_type}_v1.parquet"
+    
+    if not baseline_file.exists():
+        raise HTTPException(
+            400, 
+            detail=f"Baseline para '{request.confirmed_type}' no disponible"
+        )
+    
+    try:
+        baseline_df = pd.read_parquet(baseline_file)
+        boxing_analyzer.set_baseline(baseline_df)
+    except Exception as exc:
+        logger.exception("Error cargando baseline: %s", exc)
+        raise HTTPException(500, detail="Error cargando baseline")
+    
+    # 3. Re-procesar si tenemos el video original guardado
+    #    (alternativa: re-procesar desde landmarks si están cacheados en Redis)
+    
+    # TODO: Implementar re-procesamiento completo
+    # Por ahora, retornar confirmación de recepción
+    
+    # Actualizar sesión con tipo confirmado
+    session.punch_type_confirmed = request.confirmed_type
+    session.user_corrected = True
+    await session.save()
+    
+    return {
+        "success": True,
+        "session_id": request.session_id,
+        "confirmed_type": request.confirmed_type,
+        "message": f"Tipo de golpe confirmado como '{request.confirmed_type}'. Re-análisis pendiente de implementación."
+    }
 
 
 @router.post("/analyze-multi-baseline", response_model=MultiBaselineResponse)

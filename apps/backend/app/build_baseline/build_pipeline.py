@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 
-from ml_service.dtw_scorer import FEATURE_ORDER
+from ml_service.dtw_scorer import DTW_FEATURE_ORDER
 from ml_service.frame_quality import validate_frame, smooth_features
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ def filter_low_visibility(df: pd.DataFrame) -> pd.DataFrame:
 
 def smooth_series(df: pd.DataFrame, alpha: float = 0.7) -> pd.DataFrame:
     out = df.copy()
-    for col in FEATURE_ORDER:
+    for col in DTW_FEATURE_ORDER:
         if col in out.columns:
             out[col] = out[col].ewm(alpha=alpha, adjust=False).mean()
     return out
@@ -85,7 +85,7 @@ def augment(df: pd.DataFrame, punch_type: str, n_good: int = 5, n_acceptable: in
     def _resample(target_len: int) -> pd.DataFrame:
         x_t = np.linspace(0, 1, target_len)
         tmp = {}
-        for col in FEATURE_ORDER:
+        for col in DTW_FEATURE_ORDER:
             if col not in window.columns:
                 tmp[col] = np.zeros(30)
                 continue
@@ -97,7 +97,7 @@ def augment(df: pd.DataFrame, punch_type: str, n_good: int = 5, n_acceptable: in
 
     for i in range(n_good):
         aug = _resample(np.random.randint(28, 32))
-        for col in FEATURE_ORDER:
+        for col in DTW_FEATURE_ORDER:
             aug[col] = aug[col] * np.random.uniform(0.98, 1.02) + _temporal_noise(30, 0.005)
         aug["category"] = "GOOD"
         aug["synthetic"] = True
@@ -107,7 +107,7 @@ def augment(df: pd.DataFrame, punch_type: str, n_good: int = 5, n_acceptable: in
 
     for i in range(n_acceptable):
         aug = _resample(np.random.randint(25, 40))
-        for col in FEATURE_ORDER:
+        for col in DTW_FEATURE_ORDER:
             aug[col] = aug[col] * np.random.uniform(0.90, 1.10) + _temporal_noise(30, 0.02)
         aug["category"] = "ACCEPTABLE"
         aug["synthetic"] = True
@@ -133,23 +133,68 @@ def build_punch(raw_parquet: Path, output_parquet: Path, punch_type: str) -> pd.
     logger.info("✅ Saved intermediate: %s", output_parquet)
     return df
 
+def merge_video_features(video_paths: list[Path]) -> pd.DataFrame:
+    """Concatena features de múltiples videos del mismo tipo de golpe."""
+    dfs = []
+    for path in video_paths:
+        df = extract_features_from_video(path)
+        df['source_video'] = path.name
+        dfs.append(df)
+    return pd.concat(dfs, ignore_index=True)
+
+def extract_features_from_video(video_path: Path) -> pd.DataFrame:
+    """Extract features from a single video file."""
+    # TODO: Implement video processing logic
+    # This should call the existing video processing pipeline
+    # For now, return empty DataFrame as placeholder
+    return pd.DataFrame()
+
+def process_punch_features(df: pd.DataFrame, punch_type: str, processed_dir: Path) -> pd.DataFrame:
+    df = filter_low_visibility(df)
+    df = smooth_series(df)
+    df = normalize(df)
+    df = augment(df, punch_type=punch_type)
+    
+    output_parquet = processed_dir / f"{punch_type}_processed.parquet"
+    output_parquet.parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(output_parquet, index=False)
+    logger.info("✅ Saved intermediate: %s", output_parquet)
+    return df
+
 def build_all(videos_dir: Path, processed_dir: Path, final_out: Path) -> None:
     punches = ["jab", "cross", "gancho", "uppercut"]
     all_dfs = []
     
     for punch in punches:
-        punch_raw = videos_dir / punch / f"{punch}_raw.parquet"
-        punch_out = processed_dir / punch / f"{punch}_processed.parquet"
-        
-        # Skip if no raw parquet exists - requires real video processing
-        if not punch_raw.exists():
-            logger.warning(f"⚠️ No raw data found for {punch} at {punch_raw}")
-            logger.info(f"📹 Please place processed video data in: {punch_raw}")
-            continue  # Skip to next punch type
+        # Check for multiple videos in the punch directory
+        punch_video_dir = videos_dir / punch
+        if not punch_video_dir.exists():
+            logger.warning(f" No video directory found for {punch} at {punch_video_dir}")
+            continue
             
-        df = build_punch(punch_raw, punch_out, punch)
-        if not df.empty:
-            all_dfs.append(df)
+        # Find all video files in the punch directory
+        video_files = list(punch_video_dir.glob("*.mp4")) + list(punch_video_dir.glob("*.MOV"))
+        
+        if not video_files:
+            logger.warning(f" No video files found for {punch} in {punch_video_dir}")
+            continue
+            
+        logger.info(f" Found {len(video_files)} videos for {punch}: {[f.name for f in video_files]}")
+        
+        # Process multiple videos and merge features
+        try:
+            merged_df = merge_video_features(video_files)
+            if merged_df.empty:
+                logger.warning(f" No features extracted from {punch} videos")
+                continue
+                
+            # Process the merged features
+            processed_df = process_punch_features(merged_df, punch, processed_dir)
+            all_dfs.append(processed_df)
+            
+        except Exception as exc:
+            logger.exception(f" Error processing {punch} videos: {exc}")
+            continue
             
     if not all_dfs:
         logger.error("No data processed.")

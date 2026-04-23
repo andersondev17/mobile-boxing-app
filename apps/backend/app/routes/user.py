@@ -5,8 +5,8 @@ User CRUD endpoints using Beanie ODM.
 from fastapi import APIRouter, HTTPException, status
 from typing import List
 
-from models import User
-from schemas import UserBase
+from app.models import User
+from app.schemas import UserBase
 
 router = APIRouter(prefix="/user", tags=["user"])
 
