@@ -183,8 +183,18 @@ class AdvancedBaselineGenerator:
         frame_count = 0
         
         try:
-            import mediapipe as mp
-            mp_pose = mp.solutions.pose
+            try:
+                import mediapipe as mp
+                # Try multiple import paths for different MediaPipe versions
+                try:
+                    mp_pose = mp.solutions.pose
+                except AttributeError:
+                    try:
+                        from mediapipe.python.solutions import pose as mp_pose
+                    except ImportError:
+                        import mediapipe.python.solutions.pose as mp_pose
+            except (ImportError, AttributeError):
+                raise RuntimeError("MediaPipe not available")
             pose = mp_pose.Pose(
                 min_detection_confidence=0.5,
                 min_tracking_confidence=0.5,

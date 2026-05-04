@@ -1,7 +1,18 @@
 import numpy as np
-import mediapipe as mp
 
-mp_pose = mp.solutions.pose
+# Lazy MediaPipe import
+try:
+    import mediapipe as mp
+    # Try multiple import paths for different MediaPipe versions
+    try:
+        mp_pose = mp.solutions.pose
+    except AttributeError:
+        try:
+            from mediapipe.python.solutions import pose as mp_pose
+        except ImportError:
+            import mediapipe.python.solutions.pose as mp_pose
+except (ImportError, AttributeError):
+    mp_pose = None
 
 # Mapeo de nombres a IDs de Mediapipe
 LANDMARK_INDEX = {

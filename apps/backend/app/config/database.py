@@ -1,13 +1,14 @@
 """
-Database initialization - simplified without MongoDB dependencies.
-
-PostgreSQL connection only for now. MongoDB/Beanie disabled.
+Database initialization - PostgreSQL and MongoDB/Beanie.
 """
 
 import logging
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from motor.motor_asyncio import AsyncIOMotorClient
+from beanie import init_beanie
 
 from app.schemas.env import settings
+from models import User, Training, Exercise, Role, AuthCode, Category, Difficulty, BoxingSession, Consent
 
 logger = logging.getLogger(__name__)
 
@@ -16,16 +17,33 @@ _AsyncSessionLocal = None
 
 
 async def init_db() -> None:
-    """Initialize PostgreSQL connection only.
+    """Initialize PostgreSQL and MongoDB/Beanie connections.
     
     Called once during application startup via the lifespan handler.
-    MongoDB/Beanie disabled for now.
     """
     global _pg_engine, _AsyncSessionLocal
     
-    # Skip MongoDB entirely for now
-    logger.warning("MongoDB/Beanie disabled - using PostgreSQL only")
-    
+    # Beanie/MongoDB Initialization
+    try:
+        client = AsyncIOMotorClient(settings.MONGO_URI)
+        await init_beanie(
+            database=client.get_default_database(),
+            document_models=[
+                User,
+                Training,
+                Exercise,
+                Role,
+                AuthCode,
+                Category,
+                Difficulty,
+                BoxingSession,
+                Consent
+            ],
+        )
+        logger.info("Beanie (MongoDB) initialized successfully.")
+    except Exception as exc:
+        logger.error("❌ MongoDB connection failed: %s", exc)
+
     # Postgres Initialization 
     try:
         _pg_engine = create_async_engine(
@@ -40,10 +58,9 @@ async def init_db() -> None:
             _pg_engine, expire_on_commit=False, class_=AsyncSession
         )
         # Schema is managed by Alembic do NOT call create_all here.
-        # Run: alembic upgrade head (before first startup)
         logger.info("Postgres engine initialized (schema via Alembic).")
     except Exception as exc:
-        logger.warning("â Postgres connection failed (dev_mock): %s", exc)
+        logger.warning("⚠️ Postgres connection failed (dev_mock): %s", exc)
 
 
 async def close_db() -> None:

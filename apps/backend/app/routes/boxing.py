@@ -20,8 +20,7 @@ from pydantic import BaseModel
 from app.kafka import TechniqueProducer
 from app.ml_service import WindowBuffer, punch_classifier, dtw_scorer
 from app.ml_service.boxing_service import boxing_service
-from app.models import BoxingSession
-from app.models.boxing import Consent
+from models import BoxingSession, Consent
 from app.schemas import (
     BaselineResponse,
     BoxingSessionSchema,
@@ -365,11 +364,24 @@ from pathlib import Path
 async def create_annotated_video(input_path: Path, output_path: Path, filename: str):
     try:
         import cv2
-        import mediapipe as mp
-        
-        mp_pose = mp.solutions.pose
-        mp_drawing = mp.solutions.drawing_utils
-        mp_drawing_styles = mp.solutions.drawing_styles
+        try:
+            import mediapipe as mp
+            # Try multiple import paths for different MediaPipe versions
+            try:
+                mp_pose = mp.solutions.pose
+                mp_drawing = mp.solutions.drawing_utils
+                mp_drawing_styles = mp.solutions.drawing_styles
+            except AttributeError:
+                try:
+                    from mediapipe.python.solutions import pose as mp_pose
+                    from mediapipe.python.solutions import drawing_utils as mp_drawing
+                    from mediapipe.python.solutions import drawing_styles as mp_drawing_styles
+                except ImportError:
+                    import mediapipe.python.solutions.pose as mp_pose
+                    import mediapipe.python.solutions.drawing_utils as mp_drawing
+                    import mediapipe.python.solutions.drawing_styles as mp_drawing_styles
+        except (ImportError, AttributeError) as e:
+            raise RuntimeError(f"MediaPipe not available: {e}")
         
         cap = cv2.VideoCapture(str(input_path))
         if not cap.isOpened():
@@ -481,6 +493,12 @@ async def jab_websocket(websocket: WebSocket):
 
     jitter_buffer = []
     MAX_BUFFER_SIZE = 3 # small window for reordering
+    MAX_QUEUE_SIZE = 10 # hard limit to avoid runaway latency
+    
+    # Backpressure state
+    is_slowed_down = False
+    last_backpressure_time = 0.0
+    BACKPRESSURE_COOLDOWN = 5.0 # seconds between signaling
     
     # Connection management for proper cleanup
     connection_start_time = time.time()
@@ -509,11 +527,38 @@ async def jab_websocket(websocket: WebSocket):
             jitter_buffer.append((ts, payload))
             jitter_buffer.sort(key=lambda x: x[0])
             
-            if len(jitter_buffer) < MAX_BUFFER_SIZE:
+            # --- Backpressure & Congestion Control ---
+            queue_len = len(jitter_buffer)
+            now_time = time.time()
+            
+            # 1. Signal Slow Down if queue is growing
+            if queue_len > (MAX_QUEUE_SIZE // 2) and not is_slowed_down:
+                if now_time - last_backpressure_time > BACKPRESSURE_COOLDOWN:
+                    await websocket.send_json({"type": "slow_down"})
+                    is_slowed_down = True
+                    last_backpressure_time = now_time
+                    logger.warning("Backpressure: Sent SLOW_DOWN to client (queue=%d)", queue_len)
+            
+            # 2. Hard Drop if queue is critically full
+            if queue_len > MAX_QUEUE_SIZE:
+                # Keep only the newest frame to recover real-time state
+                jitter_buffer = jitter_buffer[-1:]
+                logger.warning("Congestion: Dropped %d old frames to recover latency", queue_len - 1)
+                # BUG-3 FIX: Do NOT continue — fall through to process the surviving frame
+                # immediately instead of waiting for MAX_BUFFER_SIZE frames (2-3s stall).
+            elif len(jitter_buffer) < MAX_BUFFER_SIZE:
                 continue
             
             # Pop the oldest frame to process
             _, payload = jitter_buffer.pop(0)
+
+            # 3. Signal Speed Up if queue is empty and we were slowed down
+            if is_slowed_down and len(jitter_buffer) == 0:
+                 if now_time - last_backpressure_time > BACKPRESSURE_COOLDOWN:
+                    await websocket.send_json({"type": "speed_up"})
+                    is_slowed_down = False
+                    last_backpressure_time = now_time
+                    logger.info("Backpressure: Sent SPEED_UP to client (queue empty)")
 
             # ── Reset ────────────────────────────────────────
             action = payload.get("action")
@@ -522,8 +567,80 @@ async def jab_websocket(websocket: WebSocket):
                 await websocket.send_json({"status": "reset"})
                 continue
 
-            # ── Landmarks path (preferred) ───────────────────
+            # ── Consent granted via WS ────────────────────────
+            if action == "consent_granted":
+                ws_user_id = payload.get("user_id")
+                ws_consent_type = payload.get("consent_type", "biometric")
+                if ws_user_id:
+                    # Upsert consent document in MongoDB so per-frame checks pass.
+                    existing_consent = await Consent.find_one(
+                        Consent.user_id == ws_user_id,
+                        Consent.consent_type == ws_consent_type,
+                    )
+                    if existing_consent:
+                        existing_consent.granted = True
+                        existing_consent.revoked_at = None
+                        await existing_consent.save()
+                    else:
+                        await Consent(
+                            user_id=ws_user_id,
+                            consent_type=ws_consent_type,
+                            granted=True,
+                        ).insert()
+                    consent_verified = True
+                    consented_user_id = ws_user_id
+                    logger.info("Consent granted via WS for user=%s type=%s", ws_user_id, ws_consent_type)
+                    await websocket.send_json({"status": "consent_accepted", "consent_type": ws_consent_type})
+                else:
+                    await websocket.send_json({"error": "consent_missing_user_id", "message": "user_id is required for consent"})
+                continue
+
+            # ── Frame extraction (fallback) ──────────────────
+            raw_frame = payload.get("frame")
             raw_landmarks = payload.get("landmarks")
+            
+            if raw_frame and not raw_landmarks:
+                import base64
+                import cv2
+                import numpy as np
+                try:
+                    if "," in raw_frame:
+                        raw_frame = raw_frame.split(",")[1]
+                    img_data = base64.b64decode(raw_frame)
+                    np_arr = np.frombuffer(img_data, np.uint8)
+                    frame_img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                    if frame_img is not None:
+                        rgb = cv2.cvtColor(frame_img, cv2.COLOR_BGR2RGB)
+                        # BUG-4 FIX: Run MediaPipe inference off the event loop to avoid
+                        # blocking all other WebSocket clients for 50-150ms per frame.
+                        loop = asyncio.get_event_loop()
+                        result = await loop.run_in_executor(None, ws_tracker.pose.process, rgb)
+                        if result.pose_landmarks:
+                            # BUG-2 FIX: Use named dict (same format as process_frame()) instead
+                            # of an indexed list. PoseOverlay accesses landmarks.right_shoulder —
+                            # indexing a list by a string key returns undefined on the client.
+                            # Extract ALL landmarks that feature_extractor.py needs:
+                            # nose(0), shoulders(11-12), elbows(13-14), wrists(15-16),
+                            # hips(23-24), knees(25-26), ankles(27-28).
+                            # Missing any of these causes features to be 0.0 → jab never triggers.
+                            TARGET_INDICES = {
+                                'nose': 0,
+                                'left_shoulder': 11, 'right_shoulder': 12,
+                                'left_elbow': 13, 'right_elbow': 14,
+                                'left_wrist': 15, 'right_wrist': 16,
+                                'left_hip': 23, 'right_hip': 24,
+                                'left_knee': 25, 'right_knee': 26,
+                                'left_ankle': 27, 'right_ankle': 28,
+                            }
+                            named_landmarks: dict = {}
+                            for name, idx in TARGET_INDICES.items():
+                                lm = result.pose_landmarks.landmark[idx]
+                                named_landmarks[name] = [lm.x, lm.y, lm.z, lm.visibility]
+                            raw_landmarks = named_landmarks
+                except Exception as e:
+                    logger.error("Frame decode error: %s", e)
+
+            # ── Landmarks path (preferred) ───────────────────
             if raw_landmarks:
                 # ── Consent check (once per session) ─────────
                 user_id: str | None = payload.get("user_id")
@@ -533,6 +650,13 @@ async def jab_websocket(websocket: WebSocket):
                         Consent.consent_type == "biometric",
                         Consent.granted == True,
                     )
+                    # Fallback: also check "biometric_data" (REST consent endpoint uses this type)
+                    if not consent:
+                        consent = await Consent.find_one(
+                            Consent.user_id == user_id,
+                            Consent.consent_type == "biometric_data",
+                            Consent.granted == True,
+                        )
                     if not consent:
                         await websocket.send_json(
                             {
@@ -618,7 +742,7 @@ async def jab_websocket(websocket: WebSocket):
                     _detected_punch = punch_type or "jab"
                     _detected_score = dtw_score or 0.0
                     _frame_idx = features.get("frame_index", 0) if features else 0
-                    asyncio.create_task(
+                    asyncio.ensure_future(
                         asyncio.get_event_loop().run_in_executor(
                             None,
                             lambda: technique_producer.send_punch_detected(
@@ -643,6 +767,8 @@ async def jab_websocket(websocket: WebSocket):
                     "dtw_score": dtw_score,
                     "punch_type": punch_type,
                     "qualitative_label": qualitative_label,
+                    "landmarks": raw_landmarks,
+                    "timestamp": payload.get("timestamp"),
                 }
                 if payload.get("session_id"):
                     response["session_id"] = payload["session_id"]

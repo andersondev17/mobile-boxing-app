@@ -1,6 +1,19 @@
 import cv2
-import mediapipe as mp
 import numpy as np
+
+# Lazy MediaPipe import - solutions may not be available in all MediaPipe versions
+try:
+    import mediapipe as mp
+    # Try multiple import paths for different MediaPipe versions
+    try:
+        mp_pose = mp.solutions.pose
+    except AttributeError:
+        try:
+            from mediapipe.python.solutions import pose as mp_pose
+        except ImportError:
+            import mediapipe.python.solutions.pose as mp_pose
+except (ImportError, AttributeError):
+    mp_pose = None
 from dataclasses import dataclass
 from typing import Union
 
@@ -81,7 +94,24 @@ class JabEvent:
 
 
 class JabTracker:
-    def __init__(self, threshold_extension=0.28, threshold_speed=0.9):
+    """State-machine punch detector that works with both side-view and
+    front-facing (selfie) cameras.
+
+    Uses two complementary extension metrics:
+      * **X-displacement** (``forward_extent_left/right``) — effective when the
+        camera is perpendicular to the punch direction (side view).
+      * **Elbow-angle extension** — camera-angle invariant; maps the elbow
+        angle to a 0-1 scale where 90° (bent) → 0.0 and 180° (straight) → 1.0.
+        A typical guard position reads ~0.33 (120°); a full punch reads ~0.83
+        (165°).
+
+    The detector picks whichever metric gives the stronger signal, so it
+    works regardless of camera placement.
+    """
+
+    # Extension threshold: 0.65 ≈ elbow > 148° (clearly extending).
+    # Speed threshold: lowered to 0.4 to accommodate lower mobile FPS.
+    def __init__(self, threshold_extension=0.65, threshold_speed=0.4):
         self.threshold_extension = threshold_extension
         self.threshold_speed = threshold_speed
         self.state = "idle"
@@ -95,7 +125,19 @@ class JabTracker:
         if not features:
             return None
 
-        ext = features.get("forward_extent_left", 0.0)
+        # ── Best extension across BOTH hands ──────────────────────────
+        fwd_l = features.get("forward_extent_left", 0.0)
+        fwd_r = features.get("forward_extent_right", 0.0)
+
+        # Elbow-angle extension (camera-angle invariant):
+        # 90° → 0.0, 180° → 1.0.  Guard ≈ 0.33, punch ≈ 0.83.
+        elbow_l = features.get("elbow_angle_left", 90.0)
+        elbow_r = features.get("elbow_angle_right", 90.0)
+        arm_ext_l = max(0.0, (elbow_l - 90.0)) / 90.0
+        arm_ext_r = max(0.0, (elbow_r - 90.0)) / 90.0
+
+        ext = max(fwd_l, fwd_r, arm_ext_l, arm_ext_r)
+
         speed = features.get("hand_speed", 0.0)
         retract = features.get("retraction_speed", 0.0)
 
@@ -105,7 +147,8 @@ class JabTracker:
             return None
 
         if self.state == "extended":
-            if retract > 0.8 and ext < 0.15:
+            # Retraction: arm returns to guard position (ext < 0.40 ≈ elbow < 126°)
+            if ext < 0.40:
                 self.state = "idle"
                 jab_event = JabEvent(frame_idx, speed, ext, retract)
                 self.jabs.append(jab_event)
@@ -118,8 +161,14 @@ class BoxingJabTracker:
     DEFAULT_FPS = 30.0
 
     def __init__(self, baseline=None, fps=DEFAULT_FPS):
-        self.mp_pose = mp.solutions.pose
+        # Initialize MediaPipe Pose (lazy import)
+        if mp_pose is None:
+            raise RuntimeError("MediaPipe pose solutions not available. Please install mediapipe with: pip install mediapipe")
+        self.mp_pose = mp_pose
         self.pose = self.mp_pose.Pose(
+            static_image_mode=False,
+            model_complexity=1,
+            smooth_landmarks=True,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5,
         )
@@ -140,8 +189,9 @@ class BoxingJabTracker:
         self.dt = 1.0 / self.fps
 
     def reset_state(self):
-        self.prev_wrist = None
-        self.prev_forward_extent = None
+        self.prev_wrist_l = None
+        self.prev_wrist_r = None
+        self.prev_max_extent = None
         self.prev_features: dict | None = None
         self.frame_idx = 0
         self.last_jab_event = None
@@ -176,7 +226,7 @@ class BoxingJabTracker:
         if jab_event:
             self.last_jab_event = jab_event
 
-        feedback_msg = self.feedback_engine.compare(features)
+        feedback_msg = self.feedback_engine.compare_realtime(features)
         if feedback_msg is None:
             feedback_msg = self._heuristic_feedback(features, jab_event)
 
@@ -299,7 +349,7 @@ class BoxingJabTracker:
             self.last_jab_event = jab_event
 
         # ── 6. Feedback ──────────────────────────────────────────────────
-        feedback_msg = self.feedback_engine.compare(features)
+        feedback_msg = self.feedback_engine.compare_realtime(features)
         if feedback_msg is None:
             feedback_msg = self._heuristic_feedback(features, jab_event)
 
@@ -354,43 +404,72 @@ class BoxingJabTracker:
         return annotated_frames, feature_list, feedback_list
 
     def _augment_with_motion(self, landmarks, features):
-        wrist = np.array(
-            [landmarks[15].x, landmarks[15].y, landmarks[15].z],
-            dtype=float,
+        # Track BOTH wrists — pick the faster one as "hand_speed".
+        wrist_l = np.array(
+            [landmarks[15].x, landmarks[15].y, landmarks[15].z], dtype=float,
+        )
+        wrist_r = np.array(
+            [landmarks[16].x, landmarks[16].y, landmarks[16].z], dtype=float,
         )
 
-        hand_speed = 0.0
-        if self.prev_wrist is not None:
-            hand_speed = float(np.linalg.norm(wrist - self.prev_wrist) / self.dt)
+        speed_l = 0.0
+        speed_r = 0.0
+        if self.prev_wrist_l is not None:
+            speed_l = float(np.linalg.norm(wrist_l - self.prev_wrist_l) / self.dt)
+        if self.prev_wrist_r is not None:
+            speed_r = float(np.linalg.norm(wrist_r - self.prev_wrist_r) / self.dt)
+        hand_speed = max(speed_l, speed_r)
+
+        # Retraction speed — track best extension across both hands.
+        ext_left = features["forward_extent_left"]
+        ext_right = features["forward_extent_right"]
+        # Also include elbow-angle extension so retraction works for front-cam.
+        elbow_l = features.get("elbow_angle_left", 90.0)
+        elbow_r = features.get("elbow_angle_right", 90.0)
+        arm_ext_l = max(0.0, (elbow_l - 90.0)) / 90.0
+        arm_ext_r = max(0.0, (elbow_r - 90.0)) / 90.0
+        current_ext = max(ext_left, ext_right, arm_ext_l, arm_ext_r)
 
         retraction_speed = 0.0
-        if self.prev_forward_extent is not None:
-            delta_extent = features["forward_extent_left"] - self.prev_forward_extent
-            if delta_extent < 0:
-                retraction_speed = float(abs(delta_extent) / self.dt)
+        if self.prev_max_extent is not None:
+            delta = current_ext - self.prev_max_extent
+            if delta < 0:
+                retraction_speed = float(abs(delta) / self.dt)
 
         augmented = dict(features)
         augmented["hand_speed"] = hand_speed
         augmented["retraction_speed"] = retraction_speed
         augmented["frame_index"] = self.frame_idx
 
-        self.prev_wrist = wrist
-        self.prev_forward_extent = features["forward_extent_left"]
+        self.prev_wrist_l = wrist_l
+        self.prev_wrist_r = wrist_r
+        self.prev_max_extent = current_ext
 
         return augmented
 
     @staticmethod
     def _heuristic_feedback(features, jab_event):
         if jab_event:
-            return "Buen jab detectado."
+            return "Buen golpe detectado."
 
-        extent = features.get("forward_extent_left", 0.0)
+        # Use best extension across both hands (X-displacement + elbow angle)
+        fwd = max(
+            features.get("forward_extent_left", 0.0),
+            features.get("forward_extent_right", 0.0),
+        )
+        elbow_l = features.get("elbow_angle_left", 90.0)
+        elbow_r = features.get("elbow_angle_right", 90.0)
+        arm_ext = max(
+            max(0.0, (elbow_l - 90.0)) / 90.0,
+            max(0.0, (elbow_r - 90.0)) / 90.0,
+        )
+        extent = max(fwd, arm_ext)
         speed = features.get("hand_speed", 0.0)
 
-        if extent < 0.15:
-            return "Lleva la mano mas adelante."
-        if speed < 0.8:
-            return "Ejecuta el jab con mayor velocidad."
+        if extent < 0.35:
+            return "Extiende el brazo con más fuerza."
+        if speed < 0.4:
+            return "Ejecuta el golpe con mayor velocidad."
         return None
 
 

@@ -157,12 +157,11 @@ class BoxingAnalyzer:
             VideoAnalysisResult with per-frame scores and aggregated stats.
         """
         import cv2
-        import mediapipe as mp
-        from .boxing_jab_tracker import _LandmarkProxy
+        from .boxing_jab_tracker import _LandmarkProxy, mp_pose
+        if mp_pose is None:
+            raise RuntimeError("MediaPipe not available")
 
         t0 = time.perf_counter()
-
-        mp_pose = mp.solutions.pose
         frame_results: list[FrameResult] = []
         feedback_messages: set[str] = set()
         window_buffer: list[dict] = []

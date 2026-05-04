@@ -72,6 +72,8 @@ class Settings(BaseSettings):
     GOOGLE_AUTH_ENDPOINT: str = "https://accounts.google.com/o/oauth2/v2/auth"
     GOOGLE_TOKEN_ENDPOINT: str = "https://oauth2.googleapis.com/token"
     GOOGLE_USERINFO_ENDPOINT: str = "https://www.googleapis.com/oauth2/v3/userinfo"
+    
+    CORS_ORIGINS: str = "*"
 
     # ── Application ──────────────────────────────────────────
     FRONTEND_URL: str = "http://localhost:3000"
@@ -87,7 +89,7 @@ class Settings(BaseSettings):
         return self.ENV_MODE == "dev_mock"
 
     class Config:
-        env_file = "../.env"
+        env_file = ".env"
 
 
 settings = Settings()

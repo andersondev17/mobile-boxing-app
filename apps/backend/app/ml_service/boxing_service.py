@@ -13,7 +13,8 @@ import cv2
 import numpy as np
 import pandas as pd
 
-from .boxing_jab_tracker import BoxingJabTracker
+# Lazy import to avoid MediaPipe import errors at module load time
+# BoxingJabTracker will be imported when actually needed
 
 logger = logging.getLogger(__name__)
 
@@ -101,11 +102,19 @@ class BoxingAnalyticsService:
         self.default_baseline_path = Path(baseline_path)
 
         self.session_store = SessionStore()
-        self.tracker = BoxingJabTracker(baseline=None)
+        self._tracker = None
         self.baseline_data: Optional[pd.DataFrame] = None
 
         self._ensure_directories()
         self._load_initial_baseline()
+
+    @property
+    def tracker(self):
+        """Lazy initialization of tracker to avoid MediaPipe import at startup."""
+        if self._tracker is None:
+            from .boxing_jab_tracker import BoxingJabTracker
+            self._tracker = BoxingJabTracker(baseline=None)
+        return self._tracker
 
     def _ensure_directories(self) -> None:
         for folder in (self.temp_dir, self.output_dir, self.processed_dir, self.upload_dir, self.pro_videos_dir):
@@ -188,7 +197,7 @@ class BoxingAnalyticsService:
                 if not ret:
                     break
 
-                overlay_frame, features, tracker_feedback, _, landmarks = tracker.process_frame(frame)
+                overlay_frame, features, tracker_feedback, _, _ = tracker.process_frame(frame)
                 frame_to_write = overlay_frame if overlay_frame is not None else frame
 
                 writer.write(frame_to_write)
@@ -248,7 +257,8 @@ class BoxingAnalyticsService:
         }
         return deleted
 
-    def create_realtime_tracker(self) -> BoxingJabTracker:
+    def create_realtime_tracker(self) -> "BoxingJabTracker":
+        from .boxing_jab_tracker import BoxingJabTracker
         tracker = BoxingJabTracker(baseline=self.baseline_data)
         tracker.reset_state()
         return tracker
