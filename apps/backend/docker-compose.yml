@@ -13,7 +13,6 @@ services:
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - boxing_network
     healthcheck:
@@ -36,7 +35,7 @@ services:
       MONGO_INITDB_DATABASE: ${MONGO_DB:-boxing_app}
     volumes:
       - mongodb_data:/data/db
-      - ./scripts/init-mongo.js:/docker-entrypoint-initdb.d/init.js:ro
+      # - ./scripts/init-mongo.js:/docker-entrypoint-initdb.d/init.js:ro  # TODO: Fix init script
     networks:
       - boxing_network
     healthcheck:
@@ -87,6 +86,8 @@ services:
       - ENV_MODE=${ENV_MODE:-local_real}
       - SENTRY_DSN=${SENTRY_DSN}
       - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+    working_dir: /
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "app", "--reload-exclude", "app/logs/*", "--reload-exclude", "app/dataset/*"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -99,7 +100,6 @@ services:
     volumes:
       - ./app:/app
       - ./logs:/app/logs
-      - ./app/models:/app/models
       - ./dataset:/app/dataset
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/monitoring/health/simple"]
