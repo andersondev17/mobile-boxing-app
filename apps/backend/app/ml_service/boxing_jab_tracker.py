@@ -1,21 +1,16 @@
+import logging
 import cv2
 import numpy as np
 
-# Lazy MediaPipe import - solutions may not be available in all MediaPipe versions
+# Lazy MediaPipe import - resolved via the shared fallback helper.
 try:
-    import mediapipe as mp
-    # Try multiple import paths for different MediaPipe versions
-    try:
-        mp_pose = mp.solutions.pose
-    except AttributeError:
-        try:
-            from mediapipe.python.solutions import pose as mp_pose
-        except ImportError:
-            import mediapipe.python.solutions.pose as mp_pose
-except (ImportError, AttributeError):
-    mp_pose = None
+    from .mediapipe_utils import mp_pose
+except RuntimeError:
+    mp_pose = None  # type: ignore[assignment]
 from dataclasses import dataclass
 from typing import Union
+
+logger = logging.getLogger(__name__)
 
 from .feature_extractor import extract_features
 from .feedback_engine import FeedbackEngine
@@ -111,9 +106,10 @@ class JabTracker:
 
     # Extension threshold: 0.65 ≈ elbow > 148° (clearly extending).
     # Speed threshold: lowered to 0.4 to accommodate lower mobile FPS.
-    def __init__(self, threshold_extension=0.65, threshold_speed=0.4):
+    def __init__(self, threshold_extension=0.65, threshold_speed=0.4, retraction_threshold=0.40):
         self.threshold_extension = threshold_extension
         self.threshold_speed = threshold_speed
+        self.retraction_threshold = retraction_threshold
         self.state = "idle"
         self.jabs = []
 
@@ -144,15 +140,38 @@ class JabTracker:
         if self.state == "idle":
             if ext > self.threshold_extension and speed > self.threshold_speed:
                 self.state = "extended"
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug(
+                        "JabTracker state=idle→extended | ext=%.3f speed=%.3f "
+                        "threshold_ext=%.3f threshold_spd=%.3f",
+                        ext, speed, self.threshold_extension, self.threshold_speed,
+                    )
+            else:
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug(
+                        "JabTracker state=idle | ext=%.3f speed=%.3f "
+                        "threshold_ext=%.3f threshold_spd=%.3f",
+                        ext, speed, self.threshold_extension, self.threshold_speed,
+                    )
             return None
 
         if self.state == "extended":
-            # Retraction: arm returns to guard position (ext < 0.40 ≈ elbow < 126°)
-            if ext < 0.40:
+            # Retraction: arm returns to guard position (ext < retraction_threshold ≈ elbow < 126°)
+            if ext < self.retraction_threshold:
                 self.state = "idle"
                 jab_event = JabEvent(frame_idx, speed, ext, retract)
                 self.jabs.append(jab_event)
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug(
+                        "JabTracker state=extended→idle (jab) | ext=%.3f retraction_threshold=%.3f",
+                        ext, self.retraction_threshold,
+                    )
                 return jab_event
+            elif logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    "JabTracker state=extended | ext=%.3f retraction_threshold=%.3f",
+                    ext, self.retraction_threshold,
+                )
 
         return None
 

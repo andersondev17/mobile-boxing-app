@@ -37,6 +37,10 @@ technique_producer = TechniqueProducer()
 _async_redis: aioredis.Redis | None = None
 _window_buffer: WindowBuffer | None = None
 
+# Holds references to fire-and-forget asyncio Tasks so they are not GC'd
+# before completion.  Each task removes itself via a done-callback.
+_pending_tasks: set[asyncio.Task] = set()
+
 
 def _get_window_buffer() -> WindowBuffer:
     """Lazy-init the async Redis client and WindowBuffer singleton."""
@@ -364,25 +368,11 @@ from pathlib import Path
 async def create_annotated_video(input_path: Path, output_path: Path, filename: str):
     try:
         import cv2
-        try:
-            import mediapipe as mp
-            # Try multiple import paths for different MediaPipe versions
-            try:
-                mp_pose = mp.solutions.pose
-                mp_drawing = mp.solutions.drawing_utils
-                mp_drawing_styles = mp.solutions.drawing_styles
-            except AttributeError:
-                try:
-                    from mediapipe.python.solutions import pose as mp_pose
-                    from mediapipe.python.solutions import drawing_utils as mp_drawing
-                    from mediapipe.python.solutions import drawing_styles as mp_drawing_styles
-                except ImportError:
-                    import mediapipe.python.solutions.pose as mp_pose
-                    import mediapipe.python.solutions.drawing_utils as mp_drawing
-                    import mediapipe.python.solutions.drawing_styles as mp_drawing_styles
-        except (ImportError, AttributeError) as e:
-            raise RuntimeError(f"MediaPipe not available: {e}")
-        
+        from app.ml_service.mediapipe_utils import mp_pose, mp_drawing, mp_drawing_styles
+    except RuntimeError as e:
+        raise RuntimeError(f"MediaPipe not available: {e}") from e
+    
+    try:
         cap = cv2.VideoCapture(str(input_path))
         if not cap.isOpened():
             raise RuntimeError("No se pudo abrir el video para anotación")
@@ -638,7 +628,7 @@ async def jab_websocket(websocket: WebSocket):
                                 named_landmarks[name] = [lm.x, lm.y, lm.z, lm.visibility]
                             raw_landmarks = named_landmarks
                 except Exception as e:
-                    logger.error("Frame decode error: %s", e)
+                    logger.warning("Frame decode error: %s", e)
 
             # ── Landmarks path (preferred) ───────────────────
             if raw_landmarks:
@@ -742,7 +732,7 @@ async def jab_websocket(websocket: WebSocket):
                     _detected_punch = punch_type or "jab"
                     _detected_score = dtw_score or 0.0
                     _frame_idx = features.get("frame_index", 0) if features else 0
-                    asyncio.ensure_future(
+                    _task = asyncio.ensure_future(
                         asyncio.get_event_loop().run_in_executor(
                             None,
                             lambda: technique_producer.send_punch_detected(
@@ -754,6 +744,8 @@ async def jab_websocket(websocket: WebSocket):
                             ),
                         )
                     )
+                    _pending_tasks.add(_task)
+                    _task.add_done_callback(_pending_tasks.discard)
 
                 elif feedback_msg and now - last_feedback_time > 1.5:
                     display_feedback = feedback_msg
@@ -764,11 +756,6 @@ async def jab_websocket(websocket: WebSocket):
                     "jab_detected": bool(jab_event),
                     "frame_index": features.get("frame_index") if features else None,
                     "tracking_state": features.get("tracking_state") if features else "searching",
-                    "dtw_score": dtw_score,
-                    "punch_type": punch_type,
-                    "qualitative_label": qualitative_label,
-                    "landmarks": raw_landmarks,
-                    "timestamp": payload.get("timestamp"),
                 }
                 if payload.get("session_id"):
                     response["session_id"] = payload["session_id"]

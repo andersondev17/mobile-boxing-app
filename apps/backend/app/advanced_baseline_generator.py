@@ -206,7 +206,7 @@ class AdvancedBaselineGenerator:
                     break
                 
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                result = mp_pose.process(rgb)
+                result = pose.process(rgb)
                 
                 if result.pose_landmarks:
                     landmarks = result.pose_landmarks.landmark

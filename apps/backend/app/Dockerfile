@@ -13,10 +13,9 @@ RUN apt-get update && apt-get install -y \
     libxext6 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install Python dependencies — all deps (sqlalchemy, asyncpg, motor, etc.) are pinned in requirements.txt
 COPY app/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install uvicorn fastapi websockets>=10.4 asyncpg==0.31.0 motor==3.7.1 mediapipe==0.10.14
 
 COPY . .
 

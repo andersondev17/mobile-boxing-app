@@ -74,6 +74,8 @@ class RealtimePoseService {
   private isProcessing = false;
   private pendingFrames = 0;
   private readonly MAX_PENDING_FRAMES = 2;
+  /** True when the backend has asked us to slow down frame transmission. */
+  private isSlowed = false;
 
   /**
    * Open the WebSocket and register lifecycle callbacks.
@@ -106,14 +108,33 @@ class RealtimePoseService {
 
       this.ws.onmessage = (event) => {
         try {
-          const parsed: JabRealtimeServerMessage = JSON.parse(event.data as string);
+          const parsed = JSON.parse(event.data as string) as Record<string, unknown>;
 
-          if (parsed.error) {
-            callbacks.onError(new Error(parsed.error));
+          // ── Backpressure signals — handle locally, never forward to UI ──
+          if (parsed.type === 'slow_down') {
+            this.isSlowed = true;
+            if (__DEV__) {
+              console.log('[RealtimePoseService] Backpressure: slowing down frame transmission');
+            }
+            return;
+          }
+          if (parsed.type === 'speed_up') {
+            this.isSlowed = false;
+            if (__DEV__) {
+              console.log('[RealtimePoseService] Backpressure: resuming normal frame transmission');
+            }
             return;
           }
 
-          callbacks.onPoseUpdate(parsed);
+          // ── All other messages forwarded to the UI callback ———————————
+          const message = parsed as import('@/interfaces/interfaces').JabRealtimeServerMessage;
+
+          if (message.error) {
+            callbacks.onError(new Error(message.error));
+            return;
+          }
+
+          callbacks.onPoseUpdate(message);
         } catch (error) {
           if (__DEV__) {
             console.error('[RealtimePoseService] Error parsing WebSocket message', error);
@@ -140,6 +161,7 @@ class RealtimePoseService {
         callbacks.onStatusChange('disconnected');
         this.isProcessing = false;
         this.pendingFrames = 0;
+        this.isSlowed = false;
       };
     } catch (error) {
       if (__DEV__) {
@@ -196,6 +218,13 @@ class RealtimePoseService {
       return false;
     }
 
+    if (this.isSlowed) {
+      if (__DEV__) {
+        console.warn('[RealtimePoseService] Backpressure active (slow_down), dropping frame');
+      }
+      return false;
+    }
+
     try {
       const payload: LandmarkPayload = {
         landmarks,
@@ -220,6 +249,7 @@ class RealtimePoseService {
   /** Close the WebSocket and reset all internal state. */
   disconnect(): void {
     this.isProcessing = false;
+    this.isSlowed = false;
 
     if (this.ws) {
       this.ws.close();
