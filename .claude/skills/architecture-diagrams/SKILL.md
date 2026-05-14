@@ -187,3 +187,5 @@ flowchart LR
 - For sequence diagrams: show the data format at each step
 - For ERDs: include index fields, mark FK relationships
 - Save as `docs/diagrams/<category>/<name>.md` with the mermaid block
+
+

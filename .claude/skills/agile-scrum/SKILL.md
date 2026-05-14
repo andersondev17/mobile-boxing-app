@@ -97,3 +97,5 @@ Unexpected findings: [what we discovered during the sprint]
 Needs user decision: [things that require Federico's input]
 Next sprint start: [date]
 ```
+
+

@@ -1,6 +1,6 @@
 ---
 name: databricks-patterns
-description: Apply this skill when writing Spark notebooks for Databricks Community Edition: Bronze/Silver/Gold data pipeline from Kafka, Kalman filter on landmarks, HR vs punch precision analysis. This is a Phase 2+ skill. Trigger on: "databricks", "spark notebook", "bronze layer", "silver layer", "gold layer", "medallion", "kalman filter", "hr vs precision", "spark streaming", "databricks community".
+description: Apply this skill when writing Spark notebooks for Databricks Community Edition: Bronze/Silver/Gold data pipeline from services.events, Kalman filter on landmarks, HR vs punch precision analysis. This is a Phase 2+ skill. Trigger on: "databricks", "spark notebook", "bronze layer", "silver layer", "gold layer", "medallion", "kalman filter", "hr vs precision", "spark streaming", "databricks community".
 ---
 
 # Databricks Patterns — mobile-boxing-app (Phase 2+)
@@ -28,7 +28,7 @@ Gold: HR vs punch precision, fatigue detection
 ```python
 # bronze/01_ingest_health_metrics.ipynb
 
-# Read from Kafka (streaming)
+# Read from services.events (streaming)
 health_raw = (
     spark.readStream
     .format("kafka")
@@ -168,3 +168,5 @@ df.withWatermark("timestamp", "30 seconds")
 - Node type: Standard_DS3_v2 (14GB RAM) — single node
 - Auto-terminate: 120 minutes
 - Libraries: `dtaidistance`, `scikit-learn` (install via cluster UI or %pip)
+
+

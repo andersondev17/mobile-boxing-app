@@ -44,3 +44,5 @@ Mobile frontend developer. Your territory is `apps/mobile/`. You do not touch th
 1. Read the existing file(s) in your territory that are relevant
 2. Apply boxing-conventions and mobile-patterns skills
 3. Check `interfaces/interfaces.d.ts` for existing type definitions before creating new ones
+
+

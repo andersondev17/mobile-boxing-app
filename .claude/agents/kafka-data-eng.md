@@ -54,3 +54,5 @@ asyncio.create_task(producer.send(topic, value=message, key=user_id.encode()))
 1. Read `apps/backend/app/schemas/env.py` for topic names and broker config
 2. Apply kafka-schema skill for exact message format
 3. Apply boxing-conventions skill for project naming conventions
+
+

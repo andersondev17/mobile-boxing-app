@@ -64,3 +64,5 @@ Recommended fix owner: [backend-builder | mobile-dev | ml-researcher | kafka-dat
 - Grep for function names, error strings across the codebase
 - Bash: run `docker logs boxing-kafka` or `docker logs boxing-backend` for container logs
 - Check Redis state: `docker exec boxing-redis redis-cli LLEN smartwatch:telemetry`
+
+

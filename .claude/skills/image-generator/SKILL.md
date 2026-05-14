@@ -94,3 +94,5 @@ When describing UI for diagrams:
 - Cards: dark surface `#2D2D2D`, 12px corner radius, subtle border
 - Icons: outline style, 24px, white or green
 - Spacing: 16px base unit (4px grid)
+
+

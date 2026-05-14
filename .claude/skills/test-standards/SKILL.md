@@ -93,7 +93,7 @@ def jab_landmarks_bent():
 @pytest.fixture
 def window_30_frames(jab_landmarks_extended):
     """A full 30-frame window of extended jab features."""
-    from ml_service.feature_extractor import extract_features
+    from services.ml.feature_extractor import extract_features
     features = extract_features(jab_landmarks_extended)
     return [features for _ in range(30)]
 
@@ -164,3 +164,5 @@ npx jest --watchAll=false
 ```
 
 Test files: `*.test.ts` / `*.test.tsx` next to the component/hook they test.
+
+

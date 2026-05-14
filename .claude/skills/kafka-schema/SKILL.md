@@ -216,7 +216,7 @@ while True:
 After consuming, messages are stored in Redis via `kafka/storage.py`:
 
 ```python
-from kafka.storage import append_message, load_messages
+from services.events.storage import append_message, load_messages
 
 # On consume:
 append_message(payload)  # LPUSH + LTRIM to SMARTWATCH_BUFFER_SIZE (500)
@@ -246,3 +246,5 @@ Follow existing convention:
 - `apps/backend/app/kafka/smartwatch_producer.py` — existing
 - `apps/backend/app/kafka/technique_producer.py` — to create (technical-metrics)
 - `apps/backend/app/kafka/round_producer.py` — to create (round-events)
+
+

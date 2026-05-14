@@ -206,3 +206,5 @@ round-events           -- Eventos de rondas
 
 **Estado Actual**: 🟢 Sistema completo y funcional
 **Próxima Iteración**: Testing y optimización de rendimiento
+
+

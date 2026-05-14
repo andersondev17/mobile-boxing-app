@@ -26,3 +26,5 @@ The backend is now explicit about its dependency requirements. Set `ENV_MODE` in
 
 ### 🛠️ Network Robustness
 - **Jitter Buffer:** A 3-frame reordering window is implemented in the WebSocket route to handle out-of-order biometric data packets.
+
+

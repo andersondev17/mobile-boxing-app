@@ -14,7 +14,7 @@ Data architect. You design BEFORE others implement. You produce decision documen
 | Raw landmarks (streaming) | Kafka `technical-metrics` | 7 days in Kafka |
 | Processed landmark sessions | MongoDB `boxing_sessions` | Permanent |
 | Smartwatch HR (live) | Redis (key: `smartwatch:telemetry`) | 60s TTL |
-| Smartwatch HR (historical) | MongoDB → from Kafka consumer | Permanent |
+| Smartwatch HR (historical) | MongoDB → from services.events consumer | Permanent |
 | Round scores | MongoDB `sessions` | Permanent |
 | Live telemetry | Redis with TTL 60s | Auto-expire |
 | Analytics aggregates | Databricks Gold layer | Phase 2+ |
@@ -52,3 +52,5 @@ Data architect. You design BEFORE others implement. You produce decision documen
 ## Current models location
 - `apps/backend/app/models/model.py` — User, Role, Training, Exercise, Category, Difficulty, AuthCode
 - `apps/backend/app/models/boxing.py` — BoxingSession, Consent
+
+

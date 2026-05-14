@@ -151,3 +151,5 @@ Documents with biometric data must also have:
 | `smartwatch` | MongoDB + Redis + Kafka + backend | Developing wearable integration |
 | `catalog` | MongoDB + backend | Developing exercise catalog |
 | `full` | All services | Integration testing |
+
+

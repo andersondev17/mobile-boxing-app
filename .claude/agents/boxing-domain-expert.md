@@ -53,3 +53,5 @@ Before any feature is added to feature_extractor.py, confirm:
 - Score always returns 0 despite visible punches: feature ranges are wrong
 - Feedback is identical for jab and cross: punch type not being distinguished
 - High variance in score for identical technique: window size or feature normalization issue
+
+

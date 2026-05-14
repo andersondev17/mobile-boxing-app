@@ -147,3 +147,5 @@ Implement a `DELETE /user/{user_id}` that cascades: User, BoxingSession, Consent
 
 ## Policy Version
 Always include `policy_version: "v1.0"` in consent records. When the privacy policy changes, bump to `"v1.1"`, `"v2.0"`, etc., and require re-consent from existing users.
+
+

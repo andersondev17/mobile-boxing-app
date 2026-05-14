@@ -77,3 +77,5 @@ curl http://localhost:8000/boxing/status
 2. Apply docker-patterns skill
 3. Verify the change doesn't break the < 4GB RAM constraint
 4. Update `.env.example` if new variables are added (never commit `.env`)
+
+

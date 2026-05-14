@@ -120,3 +120,5 @@ gh pr create --title "fix(kafka): partition key correction" --body "..."
 - `*.parquet` files with real user data
 - `apps/backend/app/ml_service/models/*.task` (large binary model files — use Git LFS)
 - `node_modules/`, `__pycache__/`, `.expo/`
+
+

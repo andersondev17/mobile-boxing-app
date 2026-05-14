@@ -134,3 +134,5 @@ docker-compose up
 3. NUNCA violar las 6 restricciones permanentes
 4. Usar modos light para testear (no levantar el stack completo innecesariamente)
 5. `/compact` antes de cambiar de módulo para mantener el contexto limpio
+
+

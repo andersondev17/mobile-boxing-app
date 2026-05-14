@@ -107,3 +107,5 @@ boxing-api/                       # Monorepo root
 | TypeScript interfaces | `PascalCase` | `JabRealtimeServerMessage` |
 | Expo screens | lowercase with dashes | `realtime/index.tsx` |
 | Environment vars | `SCREAMING_SNAKE_CASE` | `KAFKA_TOPIC_HEALTH` |
+
+

@@ -209,3 +209,5 @@ export const API_BASE_URL = (() => {
 - `services/realtimePoseService.ts` sends base64 frames → must migrate to landmarks
 - `package.json` has `react-native-appwrite` (unused) → remove
 - `app/exercises/realtime/index.tsx` uses `expo-camera` with base64 → replace with vision camera frame processor
+
+

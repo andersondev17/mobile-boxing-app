@@ -145,3 +145,5 @@ When reporting a bug, always include:
 - Don't add try/except to silence errors — find the root cause
 - Don't restart containers as a "fix" — containers coming back means the bug is still there
 - Don't test with hardcoded credentials — use `.env` values always
+
+
